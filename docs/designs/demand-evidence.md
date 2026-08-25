@@ -299,13 +299,15 @@ The broad thesis remains unproven:
 
 The narrower thesis is supported:
 
-> “Serious self-directed learners need a low-friction way to turn personally encountered language and personally made mistakes into contextual, productive practice that resurfaces at the right time.”
+> “Serious self-directed language learners need a low-friction way to turn personally encountered language and personally made mistakes into contextual, productive practice that resurfaces for later reuse.”
+
+For current discovery, **Language OS is the long-term vision, not the V0 scope**. The evidence does not validate Whole Knowledge as an all-in-one replacement for Duolingo, Anki, LingQ, tutors, authentic media, or specialist learning tools. A first product would have to earn its place by improving the connective workflow between those resources, not by duplicating them.
 
 ## Implication for the next office-hours decision
 
 The strongest candidate first user is not a beginner looking for a course. It is an intermediate, self-directed learner who already consumes authentic material, uses at least two learning tools, and has visible evidence that recognition exceeds production or that corrected mistakes keep recurring.
 
-Before selecting a V0, this profile must be tested in direct interviews and observation. The next assignment should be to watch at least five such learners perform their real capture → review → output → correction workflow without a demo or product pitch.
+Before selecting a V0, this profile must be tested through direct contextual observation. The next assignment is to watch five such learners perform or reconstruct a recent real capture → review → output → correction workflow without a demo or product pitch. The field protocol is defined in [Contextual Observation Protocol](contextual-observation-protocol.md).
 
 ## Research limitations
 
