@@ -1,8 +1,16 @@
 # Whole Knowledge: External Demand Evidence
 
 Research date: 2026-08-25  
-Status: Product discovery evidence, not an approved product design  
+Status: Preserved product-discovery evidence; formal follow-up is **deferred — not blocking current product development**
+
 Method: Public discussions, app-store reviews, product forums, and official product documentation
+
+> **Development-direction note (2026-08-25):** This evidence, including its
+> contradictions, limitations, and falsification criteria, remains valuable
+> reference material. The five-participant contextual-observation phase is no
+> longer a prerequisite for V0. Founder use and rapid iteration are the current
+> feedback loop; formal external validation may resume through an explicit
+> future decision.
 
 ## Research question
 
@@ -303,11 +311,11 @@ The narrower thesis is supported:
 
 For current discovery, **Language OS is the long-term vision, not the V0 scope**. The evidence does not validate Whole Knowledge as an all-in-one replacement for Duolingo, Anki, LingQ, tutors, authentic media, or specialist learning tools. A first product would have to earn its place by improving the connective workflow between those resources, not by duplicating them.
 
-## Implication for the next office-hours decision
+## Preserved recommendation for future external research
 
 The strongest candidate first user is not a beginner looking for a course. It is an intermediate, self-directed learner who already consumes authentic material, uses at least two learning tools, and has visible evidence that recognition exceeds production or that corrected mistakes keep recurring.
 
-Before selecting a V0, this profile must be tested through direct contextual observation. The next assignment is to watch five such learners perform or reconstruct a recent real capture → review → output → correction workflow without a demo or product pitch. The field protocol is defined in [Contextual Observation Protocol](contextual-observation-protocol.md).
+If formal external validation resumes, the preserved recommendation is to watch five such learners perform or reconstruct a recent real capture → review → output → correction workflow without a demo or product pitch. The field protocol is defined in [Contextual Observation Protocol](contextual-observation-protocol.md). This study is currently deferred and does not gate V0 selection or implementation.
 
 ## Research limitations
 

@@ -3,8 +3,16 @@
 Research stage: Direct behavioral discovery  
 Sample: Five target participants  
 Session length: 30–45 minutes  
-Status: Ready for field use; not authorization to build a V0  
+Status: **Deferred — not blocking current product development**; preserved and ready if formal research resumes
+
 Last updated: 2026-08-25
+
+> **Development-direction note (2026-08-25):** Recruitment and the five formal
+> observation sessions are intentionally paused. They are not prerequisites for
+> V0 selection or implementation. Preserve this protocol, its contradictions,
+> falsification criteria, and the linked research kit without weakening or
+> rewriting them. Founder use and rapid iteration are the active feedback loop;
+> use this protocol only after an explicit decision to resume external research.
 
 ## Decision this study must inform
 
