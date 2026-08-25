@@ -59,8 +59,8 @@ All six conditions must pass. A successful specialist-tool workflow remains elig
 
 Disposition: ☐ Include ☐ Exclude  Reason: ________________________________
 
-Sampling tags: ☐ Production gap ☐ Recurring correction ☐ Both  
-Correction source: __________  Primary storage/review system: __________  
+Sampling tags: ☐ Production gap ☐ Recurring correction ☐ Both
+Correction source: __________  Primary storage/review system: __________
 Device pattern: ☐ Desktop-heavy ☐ Phone-heavy ☐ Mixed  Target language: ______
 
 Do not report multiple-resource use or the target tension as a study finding; the sample intentionally requires them.
@@ -87,6 +87,6 @@ Add one row for every screened candidate, including exclusions and replacements.
 | P04 | | ☐ | ☐ | ☐ | | | |
 | P05 | | ☐ | ☐ | ☐ | | | |
 
-Required contrast check: ☐ 2 production-gap seats ☐ 2 recurring-corrected-mistake seats ☐ 1 both/underrepresented  
-☐ 2+ human correction ☐ 2+ flashcard/review ☐ 2+ notes/sheet/journal  
+Required contrast check: ☐ 2 production-gap seats ☐ 2 recurring-corrected-mistake seats ☐ 1 both/underrepresented
+☐ 2+ human correction ☐ 2+ flashcard/review ☐ 2+ notes/sheet/journal
 ☐ 2+ target languages ☐ 2+ primary ecosystems ☐ desktop and phone patterns if available

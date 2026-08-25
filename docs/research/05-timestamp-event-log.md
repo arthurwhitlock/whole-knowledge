@@ -30,8 +30,8 @@ Key a second narrow row to every event so no recording is required for reconstru
 
 ## Event card — duplicate for every event
 
-Event ID: ______  Start–end: ______  Historical event time: ______  
-Anchor/lineage: ______  Artifact reference: ______  Artifact type: ______  
+Event ID: ______  Start–end: ______  Historical event time: ______
+Anchor/lineage: ______  Artifact reference: ______  Artifact type: ______
 Loop stage: ______
 
 Pre-state → post-state: ______________________________________________________
@@ -54,11 +54,11 @@ Context status by relevant field:
 
 Use only: preserved / transformed / not captured / unavailable / demonstrably lost.
 
-Practice task: ☐ Recognition ☐ Cued recall ☐ Constrained production ☐ Free production ☐ Real-world use ☐ None  
-Goal fit: ☐ Yes ☐ No ☐ Unknown  Queue integrity: ☐ Queued ☐ Searchable only ☐ Orphaned ☐ Not applicable ☐ Unknown  
+Practice task: ☐ Recognition ☐ Cued recall ☐ Constrained production ☐ Free production ☐ Real-world use ☐ None
+Goal fit: ☐ Yes ☐ No ☐ Unknown  Queue integrity: ☐ Queued ☐ Searchable only ☐ Orphaned ☐ Not applicable ☐ Unknown
 Feedback closure: ☐ Changed future practice ☐ Did not change it ☐ Not applicable ☐ Unknown
 
-Duration: ______  Source: ☐ R recorded ☐ D artifact-derived ☐ E participant estimate  
+Duration: ______  Source: ☐ R recorded ☐ D artifact-derived ☐ E participant estimate
 Estimate range/confidence: __________________
 
 Manual work / interruption: __________________________________________________

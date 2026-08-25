@@ -55,9 +55,9 @@ Ask frequency, time, and cost only after the behavior is shown.
 
 ## Evidence labels
 
-O = directly observed  
-A1 = dated history/artifact verifies event or change  
-A2 = static artifact exists; sequence reconstructed  
+O = directly observed
+A1 = dated history/artifact verifies event or change
+A2 = static artifact exists; sequence reconstructed
 S = self-report only
 
 Critical causal links require O or A1. If evidence is missing, record unknown.

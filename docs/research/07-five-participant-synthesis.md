@@ -67,8 +67,8 @@ A tool ecosystem is defined by the primary storage-and-review mechanism, not by 
 9. Thesis effect: ☐ Support ☐ Narrow ☐ Contradict ☐ Unrelated
 10. Smallest assumption to test next without building software: ______________
 
-Counts: Positive ___  Countercase ___  Unknown ___  
-Same predefined M/P/I positive count: ___  Relevant countercase count: ___  
+Counts: Positive ___  Countercase ___  Unknown ___
+Same predefined M/P/I positive count: ___  Relevant countercase count: ___
 Distinct primary storage/review ecosystems represented: ___
 
 ## Required synthesis outputs

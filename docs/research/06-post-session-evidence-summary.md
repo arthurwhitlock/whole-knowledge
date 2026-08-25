@@ -6,7 +6,7 @@ Complete within 24 hours. Participant: P0__  Session date: ______  Analyst: ____
 
 ## Evidence correction
 
-Timestamps checked: ☐  Artifact references checked: ☐  Unrelated personal data removed: ☐  
+Timestamps checked: ☐  Artifact references checked: ☐  Unrelated personal data removed: ☐
 O/A1/A2/S labels checked: ☐  Moderator effects marked: ☐
 
 ## Actual path
@@ -72,7 +72,7 @@ Later opportunity/outcome (O/A1 ref or unknown): _____________________________
 
 Critical link supported only by A2/S? ☐ No ☐ Yes → final classification must be unknown
 
-Preliminary coder label: ☐ Positive ☐ Countercase ☐ Unknown  
+Preliminary coder label: ☐ Positive ☐ Countercase ☐ Unknown
 Candidate M/P/I codes: ______ / ______ / ______  Evidence IDs: _______________
 
 Do not finalize classification until independent coding and adjudication.

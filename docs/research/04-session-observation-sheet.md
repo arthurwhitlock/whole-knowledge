@@ -2,17 +2,17 @@
 
 Source of truth: [Contextual Observation Protocol](../designs/contextual-observation-protocol.md)
 
-Participant: P0__  Date: ______  Moderator: ______  Duration: ______  
+Participant: P0__  Date: ______  Moderator: ______  Duration: ______
 Target language: ______  Main devices: ______  Primary storage/review system: ______
 
-Note consent: ☐ Yes ☐ No  Recording consent: ☐ Yes ☐ No  
+Note consent: ☐ Yes ☐ No  Recording consent: ☐ Yes ☐ No
 Privacy pause/redaction used: ☐ No ☐ Yes: ______
 
 ## Anchor selection
 
 ### N — newest encounter
 
-Source/activity: __________________  Selection limitation: __________________  
+Source/activity: __________________  Selection limitation: __________________
 Item noticed: _____________________  Saved? ☐ Yes ☐ No  Lineage: P0__-N1
 
 ### H — historical chain
@@ -28,7 +28,7 @@ Eligible H = one discrete marked/saved target-language item or one discrete orig
 | | | | ☐ | |
 | | | | ☐ | |
 
-Chosen H: __________  Lineage: P0__-H1  Tie-break used: ☐ No ☐ Yes: ______  
+Chosen H: __________  Lineage: P0__-H1  Tie-break used: ☐ No ☐ Yes: ______
 Original artifact date/ref: __________________  Current/later artifact ref: __________________
 
 ## Traced workflow
@@ -51,10 +51,10 @@ Resurfacing: ☐ Automatic ☐ Deliberately searched ☐ Remembered unaided ☐ 
 
 ## Raw totals
 
-Unique surfaces: ___  Handoffs: ___  Manual transfers/re-entry: ___  Duplicates: ___  
-Context loss: source ___ surrounding language ___ audio ___ situation ___ intended meaning ___ original attempt ___ correction provenance ___  
-Active curation time/source: ______  Daily-choice time/source: ______  
-Recognition-only events: ___  Productive events: ___  Corrections traced: ___  
+Unique surfaces: ___  Handoffs: ___  Manual transfers/re-entry: ___  Duplicates: ___
+Context loss: source ___ surrounding language ___ audio ___ situation ___ intended meaning ___ original attempt ___ correction provenance ___
+Active curation time/source: ______  Daily-choice time/source: ______
+Recognition-only events: ___  Productive events: ___  Corrections traced: ___
 Verified resurfaced corrections: ___/___  Deferrals/abandonments: ___
 
 Paid tools/people and role: __________________________________________________

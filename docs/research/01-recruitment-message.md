@@ -18,7 +18,7 @@ Replace bracketed details before sending.
 >
 > If you are 18 or older and interested, please complete this short screener: [link].
 >
-> Thank you,  
+> Thank you,
 > [researcher/contact]
 
 ## Confirmation note for selected participants

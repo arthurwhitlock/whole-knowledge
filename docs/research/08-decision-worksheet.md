@@ -43,7 +43,7 @@ A goal-matched practice occasion is a dated speaking, writing, tutor, or review 
 
 Absence may be coded only inside the H observation window, from its timestamp through the session date, and only when at least one verified due event or goal-matched practice occasion creates a fair opportunity. Otherwise assign unknown, not P4. P3 may describe the original queue state without such an occasion, but it cannot become a positive chain without a separately evidenced I1–I5 impact.
 
-Coder A: class ______ M/P/I ______  Coder B: class ______ M/P/I ______  
+Coder A: class ______ M/P/I ______  Coder B: class ______ M/P/I ______
 Adjudicated: class ______ M/P/I ______  Unresolved disagreement: ☐ → Unknown
 
 ## Case classifications
@@ -120,10 +120,10 @@ Manual-test feasibility gate: ☐ Pass ☐ Fail ☐ Not reached
 
 ## Final decision
 
-☐ Reject current thesis/mechanism  
-☐ Materially narrow thesis/mechanism  
-☐ Inconclusive; recruit follow-up contrast sample  
-☐ Proceed only to a manual, narrow V0 test  
+☐ Reject current thesis/mechanism
+☐ Materially narrow thesis/mechanism
+☐ Inconclusive; recruit follow-up contrast sample
+☐ Proceed only to a manual, narrow V0 test
 ☐ Do not select a V0 yet
 
 Complete without product language:
