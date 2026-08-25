@@ -52,12 +52,24 @@ provide the same product, data, and capabilities on both, with adaptive
 presentation for narrow and wide layouts, window resizing, keyboard and mouse,
 and touch.
 
-Supabase is the intended future backend for authentication, PostgreSQL user
-data, cross-device synchronization, potentially realtime synchronization, and
-later storage if recordings or attachments require it. It is **not yet
-implemented**: no dependency or schema has been added. Future integration must
-remain behind application and repository boundaries rather than being called
-directly from UI widgets.
+Supabase is the intended backend for authentication, PostgreSQL user data,
+cross-device synchronization, potentially realtime synchronization, and later
+storage if recordings or attachments require it. The repository now contains a
+fail-soft bootstrap and auth-session boundary, but no product schema or auth UI.
+Supabase remains behind application and repository boundaries rather than being
+called directly from UI widgets. See [Architecture](docs/architecture.md).
+
+To enable the backend foundation locally, provide the client-safe project URL
+and publishable key at build time:
+
+```bash
+flutter run -d linux \
+  --dart-define=SUPABASE_URL=https://PROJECT.supabase.co \
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+```
+
+The shell still starts when these values are absent. Never pass a Supabase
+secret or `service_role` key to the client.
 
 ## Development
 

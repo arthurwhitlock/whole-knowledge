@@ -47,13 +47,14 @@ vertical slices and complete learning loops over all-in-one feature breadth.
 - Use Flutter and Dart for the main application.
 - Prefer simple architecture over speculative abstractions.
 - Keep business logic independent from widgets.
-- Keep domain and application logic independent from hosted services. Supabase
-  is the intended future backend for authentication, PostgreSQL user data,
-  cross-device synchronization, potentially realtime synchronization, and
-  later file storage, but it is not implemented yet. Add no Supabase dependency
-  or schema until a separate implementation task, and keep future integration
-  behind application and repository boundaries rather than calling it from UI
-  widgets.
+- Keep domain and application logic independent from hosted services. The
+  Supabase dependency, fail-soft bootstrap, and auth-session repository
+  boundary form the current backend foundation. Supabase is intended for
+  authentication, PostgreSQL user data, cross-device synchronization,
+  potentially realtime synchronization, and later file storage. No product
+  schema exists yet; add one only in a separate implementation task. Keep all
+  Supabase integration behind application and repository boundaries rather
+  than calling it from UI widgets.
 - Add dependencies only for a concrete, current need.
 - Do not silently change state management, navigation, persistence, or backend architecture.
 - Keep files focused and reasonably small.
