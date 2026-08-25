@@ -59,17 +59,36 @@ fail-soft bootstrap and auth-session boundary, but no product schema or auth UI.
 Supabase remains behind application and repository boundaries rather than being
 called directly from UI widgets. See [Architecture](docs/architecture.md).
 
-To enable the backend foundation locally, provide the client-safe project URL
-and publishable key at build time:
+To enable the hosted backend locally, copy the safe template and replace its
+placeholders with the client-safe project URL and publishable key from the
+Supabase dashboard or CLI:
 
 ```bash
+cp config/supabase.example.json config/supabase.local.json
 flutter run -d linux \
-  --dart-define=SUPABASE_URL=https://PROJECT.supabase.co \
-  --dart-define=SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+  --dart-define-from-file=config/supabase.local.json
 ```
 
-The shell still starts when these values are absent. Never pass a Supabase
-secret or `service_role` key to the client.
+`config/supabase.local.json` is ignored by Git. The shell still starts when the
+file or values are absent. Never place a Supabase secret, database password, or
+`service_role` key in this file or the client application.
+
+## Supabase CLI
+
+The repository is initialized for the Supabase CLI in `supabase/`. Install the
+current stable CLI, authenticate, and link a new clone before using remote
+commands:
+
+```bash
+supabase login
+supabase link --project-ref YOUR_PROJECT_REF
+supabase migration list
+```
+
+Create all future database changes as version-controlled migrations with
+`supabase migration new DESCRIPTION`. Do not make dashboard-only schema
+changes. Running the full local stack with `supabase start` additionally
+requires a Docker-compatible container runtime.
 
 ## Development
 
@@ -80,4 +99,5 @@ dart format .
 flutter analyze
 flutter test
 flutter build linux
+flutter build apk --debug
 ```

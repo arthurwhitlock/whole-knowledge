@@ -38,15 +38,18 @@ The app reads two compile-time defines on every platform:
 - `SUPABASE_URL`
 - `SUPABASE_PUBLISHABLE_KEY`
 
-For example:
+Copy the committed template to its ignored local path, fill in the client-safe
+values, and pass the JSON file to Flutter:
 
 ```bash
+cp config/supabase.example.json config/supabase.local.json
 flutter run -d linux \
-  --dart-define=SUPABASE_URL=https://PROJECT.supabase.co \
-  --dart-define=SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+  --dart-define-from-file=config/supabase.local.json
 ```
 
-The same defines work with Android builds and runs. Missing, partial, or invalid
+The same file works with Android builds and runs.
+`config/supabase.local.json` is ignored, while
+`config/supabase.example.json` is safe to commit. Missing, partial, or invalid
 configuration does not prevent the app shell from starting. Complete
 configuration is passed to the isolated Supabase bootstrap before `runApp`.
 Initialization failures are contained and reported without logging config
@@ -86,12 +89,14 @@ schema change, not a later hardening pass.
 
 ## Database migrations
 
-No application schema is defined yet. When schema work begins, initialize the
-Supabase CLI layout and commit ordered SQL migrations under
+No application schema is defined yet. The Supabase CLI layout is initialized;
+when schema work begins, create and commit ordered SQL migrations under
 `supabase/migrations/`. Apply changes through migrations in local, staging, and
 production environments; avoid untracked dashboard-only schema changes. Keep
 seed/demo data separate from migrations and never commit production data or
-credentials.
+credentials. A new clone must run `supabase link --project-ref PROJECT_REF`
+before remote migration commands. Running `supabase start`, resets, and local
+database tests requires a Docker-compatible container runtime.
 
 ## Linux and Android
 
