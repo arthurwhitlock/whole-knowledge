@@ -4,4 +4,6 @@ abstract interface class AuthSessionRepository {
   AuthSession? get currentSession;
 
   Stream<AuthSession?> get sessionChanges;
+
+  Future<AuthSession> ensureAnonymousSession();
 }

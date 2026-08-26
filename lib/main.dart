@@ -12,5 +12,10 @@ Future<void> main() async {
     debugPrint(message);
   }
 
-  runApp(const WholeKnowledgeApp());
+  runApp(
+    WholeKnowledgeApp(
+      dependencies: bootstrapStatus.dependencies,
+      backendMessage: bootstrapStatus.message,
+    ),
+  );
 }

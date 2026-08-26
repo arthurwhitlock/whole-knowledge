@@ -1,7 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:whole_knowledge/application/auth/auth_session_repository.dart';
+import 'package:whole_knowledge/app/app_dependencies.dart';
 import 'package:whole_knowledge/infrastructure/supabase/supabase_auth_session_repository.dart';
 import 'package:whole_knowledge/infrastructure/supabase/supabase_configuration.dart';
+import 'package:whole_knowledge/infrastructure/supabase/supabase_learning_item_repository.dart';
+import 'package:whole_knowledge/infrastructure/supabase/supabase_review_repository.dart';
 
 enum SupabaseBootstrapStatus {
   ready,
@@ -10,7 +12,7 @@ enum SupabaseBootstrapStatus {
   failed,
 }
 
-typedef SupabaseBackendInitializer = Future<AuthSessionRepository> Function(
+typedef SupabaseBackendInitializer = Future<AppDependencies> Function(
   SupabaseConfiguration configuration,
 );
 
@@ -33,10 +35,11 @@ final class SupabaseBootstrap {
     }
 
     try {
-      final authSessions = await initializer(configuration);
+      final dependencies = await initializer(configuration);
+      await dependencies.authSessions.ensureAnonymousSession();
       return SupabaseBootstrapResult(
         status: SupabaseBootstrapStatus.ready,
-        authSessions: authSessions,
+        dependencies: dependencies,
       );
     } on Object catch (error, stackTrace) {
       return SupabaseBootstrapResult(
@@ -51,20 +54,20 @@ final class SupabaseBootstrap {
 final class SupabaseBootstrapResult {
   SupabaseBootstrapResult({
     required this.status,
-    this.authSessions,
+    this.dependencies,
     this.configurationIssues = const [],
     this.error,
     this.stackTrace,
   });
 
   final SupabaseBootstrapStatus status;
-  final AuthSessionRepository? authSessions;
+  final AppDependencies? dependencies;
   final List<SupabaseConfigurationIssue> configurationIssues;
   final Object? error;
   final StackTrace? stackTrace;
 }
 
-Future<AuthSessionRepository> _initializeSupabase(
+Future<AppDependencies> _initializeSupabase(
   SupabaseConfiguration configuration,
 ) async {
   final supabase = await Supabase.initialize(
@@ -72,5 +75,9 @@ Future<AuthSessionRepository> _initializeSupabase(
     publishableKey: configuration.publishableKey,
   );
 
-  return SupabaseAuthSessionRepository(supabase.client);
+  return AppDependencies(
+    authSessions: SupabaseAuthSessionRepository(supabase.client),
+    learningItems: SupabaseLearningItemRepository(supabase.client),
+    reviews: SupabaseReviewRepository(supabase.client),
+  );
 }

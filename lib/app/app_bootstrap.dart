@@ -1,9 +1,11 @@
+import 'package:whole_knowledge/app/app_dependencies.dart';
 import 'package:whole_knowledge/infrastructure/supabase/supabase_bootstrap.dart';
 import 'package:whole_knowledge/infrastructure/supabase/supabase_configuration.dart';
 
 final class AppBootstrapStatus {
-  const AppBootstrapStatus({this.message});
+  const AppBootstrapStatus({this.dependencies, this.message});
 
+  final AppDependencies? dependencies;
   final String? message;
 }
 
@@ -13,7 +15,9 @@ Future<AppBootstrapStatus> bootstrapApplication() async {
   );
 
   return switch (result.status) {
-    SupabaseBootstrapStatus.ready => const AppBootstrapStatus(),
+    SupabaseBootstrapStatus.ready => AppBootstrapStatus(
+      dependencies: result.dependencies,
+    ),
     SupabaseBootstrapStatus.notConfigured => const AppBootstrapStatus(
       message:
           'Supabase is not configured; continuing without backend services.',

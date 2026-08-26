@@ -1,8 +1,9 @@
 # Whole Knowledge
 
-Whole Knowledge is a standalone, local-first personal Language OS built with
-Flutter. The current project contains only the application shell and its
-`shadcn_ui`-based design-system foundation.
+Whole Knowledge is a standalone personal Language OS built with Flutter. The
+first product slice supports capturing encountered language and completing a
+retrieval, production, self-rating, and rescheduling loop. Its interface uses
+the existing `shadcn_ui`-based design-system foundation.
 
 ## Current direction
 
@@ -52,12 +53,11 @@ provide the same product, data, and capabilities on both, with adaptive
 presentation for narrow and wide layouts, window resizing, keyboard and mouse,
 and touch.
 
-Supabase is the intended backend for authentication, PostgreSQL user data,
-cross-device synchronization, potentially realtime synchronization, and later
-storage if recordings or attachments require it. The repository now contains a
-fail-soft bootstrap and auth-session boundary, but no product schema or auth UI.
-Supabase remains behind application and repository boundaries rather than being
-called directly from UI widgets. See [Architecture](docs/architecture.md).
+Supabase provides anonymous V0 identity and PostgreSQL persistence for learning
+items and review attempts. Supabase remains behind application and repository
+boundaries rather than being called directly from UI widgets. See
+[Architecture](docs/architecture.md) for the schema, RLS rules, schedule, and
+account-transition strategy.
 
 To enable the hosted backend locally, copy the safe template and replace its
 placeholders with the client-safe project URL and publishable key from the
@@ -73,6 +73,23 @@ flutter run -d linux \
 file or values are absent. Never place a Supabase secret, database password, or
 `service_role` key in this file or the client application.
 
+## First learning loop
+
+The current vertical slice deliberately stays small:
+
+```text
+Capture an expression or vocabulary item
+→ Retrieve its meaning
+→ Reveal the captured notes
+→ Produce a written response
+→ Self-rate Again / Hard / Good / Easy
+→ Schedule the next review
+```
+
+New items are due immediately. V0 intervals are 10 minutes, 1 day, 3 days, and
+7 days respectively. Ratings are self-assessments; no automatic grading is
+performed.
+
 ## Supabase CLI
 
 The repository is initialized for the Supabase CLI in `supabase/`. Install the
@@ -87,8 +104,19 @@ supabase migration list
 
 Create all future database changes as version-controlled migrations with
 `supabase migration new DESCRIPTION`. Do not make dashboard-only schema
-changes. Running the full local stack with `supabase start` additionally
-requires a Docker-compatible container runtime.
+changes. Apply reviewed changes to the linked project with `supabase db push`.
+Running the full local stack with `supabase start` additionally requires a
+Docker-compatible container runtime. Anonymous sign-ins must be enabled for
+both hosted and local development projects.
+
+Run migration and RLS/RPC policy tests only against that disposable local
+stack:
+
+```bash
+supabase test db
+```
+
+Do not run database test fixtures against a linked hosted project.
 
 ## Development
 

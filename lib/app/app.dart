@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:whole_knowledge/app/app_dependencies.dart';
 import 'package:whole_knowledge/app/theme/app_spacing.dart';
 import 'package:whole_knowledge/app/theme/app_theme.dart';
+import 'package:whole_knowledge/presentation/learning/learning_workspace.dart';
 
 class WholeKnowledgeApp extends StatelessWidget {
-  const WholeKnowledgeApp({super.key});
+  const WholeKnowledgeApp({super.key, this.dependencies, this.backendMessage});
+
+  final AppDependencies? dependencies;
+  final String? backendMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -14,73 +19,51 @@ class WholeKnowledgeApp extends StatelessWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
-      home: const _DesignFoundationScreen(),
+      home: dependencies == null
+          ? _BackendUnavailableScreen(message: backendMessage)
+          : LearningWorkspace(dependencies: dependencies!),
     );
   }
 }
 
-class _DesignFoundationScreen extends StatelessWidget {
-  const _DesignFoundationScreen();
+class _BackendUnavailableScreen extends StatelessWidget {
+  const _BackendUnavailableScreen({this.message});
+
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
-
     return Scaffold(
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final horizontalPadding =
-                constraints.maxWidth < AppSpacing.compactLayoutBreakpoint
-                ? AppSpacing.pageCompact
-                : AppSpacing.page;
-
-            return SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: horizontalPadding,
-                vertical: AppSpacing.section,
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.pageCompact),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: AppSpacing.contentMaxWidth,
               ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight - (AppSpacing.section * 2),
-                ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: AppSpacing.contentMaxWidth,
-                    ),
-                    child: FocusTraversalGroup(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Language OS',
-                            style: theme.textTheme.small.copyWith(
-                              color: theme.colorScheme.mutedForeground,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.compact),
-                          Text('Whole Knowledge', style: theme.textTheme.h1),
-                          const SizedBox(height: AppSpacing.regular),
-                          Text(
-                            'A personal system for learning languages with '
-                            'clarity and continuity.',
-                            style: theme.textTheme.muted,
-                          ),
-                          const SizedBox(height: AppSpacing.section),
-                          ShadButton(
-                            onPressed: () {},
-                            child: const Text('Continue'),
-                          ),
-                        ],
-                      ),
-                    ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Whole Knowledge', style: theme.textTheme.h1),
+                  const SizedBox(height: AppSpacing.regular),
+                  Text(
+                    'The learning workspace is unavailable.',
+                    style: theme.textTheme.h3,
                   ),
-                ),
+                  const SizedBox(height: AppSpacing.compact),
+                  Text(
+                    message ??
+                        'Add the Supabase development configuration and '
+                            'restart the app.',
+                    style: theme.textTheme.muted,
+                  ),
+                ],
               ),
-            );
-          },
+            ),
+          ),
         ),
       ),
     );
