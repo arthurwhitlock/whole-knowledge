@@ -68,4 +68,45 @@ void main() {
     expect(controller.draft.partOfSpeech, 'verb');
     expect(controller.draft.meaning, 'To preserve information.');
   });
+
+  test(
+    'does not invite a duplicate retry when cleanup fails after create',
+    () async {
+      final drafts = FakeCaptureDraftRepository()..shouldFailClear = true;
+      final learningItems = FakeLearningItemRepository();
+      final controller = CaptureSessionController(
+        drafts,
+        FakeLexicalProvider(),
+        learningItems,
+      );
+      await controller.restore();
+      controller.update(const CaptureDraft(content: 'save once'));
+
+      expect(await controller.save(), isNotNull);
+
+      expect(learningItems.createCalls, 1);
+      expect(controller.draft.isMeaningful, isFalse);
+      expect(drafts.saved?.isMeaningful, isFalse);
+    },
+  );
+
+  test('fails soft when local draft storage is unavailable', () async {
+    final drafts = FakeCaptureDraftRepository()
+      ..shouldFailRead = true
+      ..shouldFailWrite = true;
+    final learningItems = FakeLearningItemRepository();
+    final controller = CaptureSessionController(
+      drafts,
+      FakeLexicalProvider(),
+      learningItems,
+    );
+
+    expect(await controller.restore(), isFalse);
+    controller.update(const CaptureDraft(content: 'still in memory'));
+    expect(await controller.save(), isNull);
+
+    expect(learningItems.createCalls, 0);
+    expect(controller.draft.content, 'still in memory');
+    expect(controller.isSaving, isFalse);
+  });
 }

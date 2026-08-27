@@ -46,6 +46,7 @@ final class FakeLearningItemRepository implements LearningItemRepository {
   int createCalls = 0;
   int listAllCalls = 0;
   int listDueCalls = 0;
+  int listPageCalls = 0;
 
   @override
   Future<LearningItem> create(CaptureLearningItem capture) async {
@@ -139,6 +140,7 @@ final class FakeLearningItemRepository implements LearningItemRepository {
     required int offset,
     required int limit,
   }) async {
+    listPageCalls += 1;
     await loadGate?.future;
     if (shouldFailLoads) throw StateError('load unavailable');
     return items.skip(offset).take(limit).toList(growable: false);
@@ -156,6 +158,7 @@ final class FakeReviewRepository implements ReviewRepository {
   bool shouldFail = false;
   int completeCalls = 0;
   final List<ReviewAttempt> attempts = [];
+  final Map<String, Completer<List<ReviewAttempt>>> attemptGates = {};
 
   @override
   Future<LearningItem> completeReview({
@@ -197,6 +200,8 @@ final class FakeReviewRepository implements ReviewRepository {
     required int offset,
     required int limit,
   }) async {
+    final gated = attemptGates[learningItemId];
+    if (gated != null) return gated.future;
     return attempts
         .where((attempt) => attempt.learningItemId == learningItemId)
         .skip(offset)
@@ -209,18 +214,26 @@ final class FakeCaptureDraftRepository implements CaptureDraftRepository {
   CaptureDraft? saved;
   int writes = 0;
   int clears = 0;
+  bool shouldFailRead = false;
+  bool shouldFailWrite = false;
+  bool shouldFailClear = false;
 
   @override
-  Future<CaptureDraft?> read() async => saved;
+  Future<CaptureDraft?> read() async {
+    if (shouldFailRead) throw StateError('read unavailable');
+    return saved;
+  }
 
   @override
   Future<void> write(CaptureDraft draft) async {
+    if (shouldFailWrite) throw StateError('write unavailable');
     writes += 1;
     saved = draft;
   }
 
   @override
   Future<void> clear() async {
+    if (shouldFailClear) throw StateError('clear unavailable');
     clears += 1;
     saved = null;
   }

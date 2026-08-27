@@ -63,6 +63,7 @@ void main() {
         const CaptureLearningItem(
           kind: LearningItemKind.expression,
           content: 'local concurrency fixture',
+          partOfSpeech: 'idiom',
         ),
       );
       final itemId = item.id;
@@ -76,6 +77,7 @@ void main() {
       expect(ownerDue.single.id, itemId);
       expect(restoredDue.single.id, itemId);
       expect(ownerDue.single.reviewCount, 0);
+      expect(ownerDue.single.partOfSpeech, 'idiom');
       expect(restoredDue.single.reviewCount, 0);
       expect(await otherItems.listDue(at: DateTime.now().toUtc()), isEmpty);
 
@@ -125,6 +127,20 @@ void main() {
       final ownerLibrary = await ownerItems.listAll();
       expect(ownerLibrary, hasLength(1));
       expect(ownerLibrary.single.reviewCount, 1);
+      expect(await ownerItems.listPage(offset: 0, limit: 50), hasLength(1));
+      expect(await ownerItems.listRecent(limit: 5), hasLength(1));
+      expect(
+        await ownerItems.listCompletedBetween(
+          from: DateTime.now().toUtc().subtract(const Duration(days: 1)),
+          to: DateTime.now().toUtc().add(const Duration(days: 1)),
+          limit: 5,
+        ),
+        hasLength(1),
+      );
+      expect(
+        await ownerItems.findNextScheduled(after: DateTime.now().toUtc()),
+        isNotNull,
+      );
 
       final attempts = await ownerClient
           .from('review_attempts')
@@ -139,6 +155,14 @@ void main() {
         'retrieval',
         'production',
       });
+      expect(
+        await ownerReviews.listAttempts(
+          learningItemId: itemId,
+          offset: 0,
+          limit: 50,
+        ),
+        hasLength(2),
+      );
 
       final winningSubmissionId =
           attempts.first['review_submission_id']! as String;

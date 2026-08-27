@@ -26,6 +26,7 @@ class LearningWorkspace extends StatefulWidget {
 class _LearningWorkspaceState extends State<LearningWorkspace>
     with WidgetsBindingObserver {
   final _contentKey = GlobalKey();
+  final _todayKey = GlobalKey<TodayScreenState>();
   late final CaptureSessionController _capture;
   late final TodayLoadController _today;
   WorkspaceDestination _destination = WorkspaceDestination.today;
@@ -33,6 +34,7 @@ class _LearningWorkspaceState extends State<LearningWorkspace>
   bool _reviewFocusMode = false;
   Timer? _dueRefreshTimer;
   int _libraryGeneration = 0;
+  bool _libraryVisited = false;
 
   @override
   void initState() {
@@ -90,7 +92,12 @@ class _LearningWorkspaceState extends State<LearningWorkspace>
   }
 
   void _select(WorkspaceDestination destination) {
-    setState(() => _destination = destination);
+    setState(() {
+      _destination = destination;
+      if (destination == WorkspaceDestination.library) {
+        _libraryVisited = true;
+      }
+    });
     if (destination == WorkspaceDestination.today) _today.refresh();
   }
 
@@ -98,6 +105,7 @@ class _LearningWorkspaceState extends State<LearningWorkspace>
     setState(() {
       _destination = WorkspaceDestination.today;
       _libraryGeneration += 1;
+      _libraryVisited = false;
     });
     _today.refresh();
   }
@@ -126,98 +134,110 @@ class _LearningWorkspaceState extends State<LearningWorkspace>
       );
     }
     final theme = ShadTheme.of(context);
-    return Scaffold(
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final wide =
-                constraints.maxWidth >= AppSpacing.navigationBreakpoint;
-            final content = _WorkspaceContent(
-              key: _contentKey,
-              destination: _destination,
-              dependencies: widget.dependencies,
-              capture: _capture,
-              today: _today,
-              libraryGeneration: _libraryGeneration,
-              onRetry: _today.refresh,
-              onCaptured: _captured,
-              onReviewCompleted: _reviewCompleted,
-              onQuickCapture: () => _select(WorkspaceDestination.capture),
-              onReviewModeChanged: (active) {
-                setState(() => _reviewFocusMode = active);
-              },
-            );
+    return PopScope(
+      canPop: !_reviewFocusMode,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _reviewFocusMode) {
+          _todayKey.currentState?.pauseReviewFromSystem();
+        }
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final wide =
+                  constraints.maxWidth >= AppSpacing.navigationBreakpoint;
+              final content = _WorkspaceContent(
+                key: _contentKey,
+                destination: _destination,
+                dependencies: widget.dependencies,
+                capture: _capture,
+                today: _today,
+                todayKey: _todayKey,
+                libraryVisited: _libraryVisited,
+                libraryGeneration: _libraryGeneration,
+                onRetry: _today.refresh,
+                onCaptured: _captured,
+                onReviewCompleted: _reviewCompleted,
+                onQuickCapture: () => _select(WorkspaceDestination.capture),
+                onReviewModeChanged: (active) {
+                  setState(() => _reviewFocusMode = active);
+                },
+              );
 
-            if (_reviewFocusMode) return content;
-            if (!wide) {
-              return Column(
+              if (_reviewFocusMode) return content;
+              if (!wide) {
+                return Column(
+                  children: [
+                    Expanded(child: content),
+                    NavigationBar(
+                      selectedIndex: _destination.index,
+                      backgroundColor: theme.colorScheme.background,
+                      indicatorColor: theme.colorScheme.muted,
+                      onDestinationSelected: (index) =>
+                          _select(WorkspaceDestination.values[index]),
+                      destinations: const [
+                        NavigationDestination(
+                          icon: Icon(Icons.today_outlined),
+                          selectedIcon: Icon(Icons.today),
+                          label: 'Today',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.add_box_outlined),
+                          selectedIcon: Icon(Icons.add_box),
+                          label: 'Capture',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.library_books_outlined),
+                          selectedIcon: Icon(Icons.library_books),
+                          label: 'Library',
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
                 children: [
-                  Expanded(child: content),
-                  NavigationBar(
+                  NavigationRail(
                     selectedIndex: _destination.index,
                     backgroundColor: theme.colorScheme.background,
                     indicatorColor: theme.colorScheme.muted,
+                    labelType: NavigationRailLabelType.all,
+                    minWidth: 88,
                     onDestinationSelected: (index) =>
                         _select(WorkspaceDestination.values[index]),
+                    leading: Padding(
+                      padding: const EdgeInsets.only(
+                        bottom: AppSpacing.regular,
+                      ),
+                      child: Text('WK', style: theme.textTheme.h4),
+                    ),
                     destinations: const [
-                      NavigationDestination(
+                      NavigationRailDestination(
                         icon: Icon(Icons.today_outlined),
                         selectedIcon: Icon(Icons.today),
-                        label: 'Today',
+                        label: Text('Today'),
                       ),
-                      NavigationDestination(
+                      NavigationRailDestination(
                         icon: Icon(Icons.add_box_outlined),
                         selectedIcon: Icon(Icons.add_box),
-                        label: 'Capture',
+                        label: Text('Capture'),
                       ),
-                      NavigationDestination(
+                      NavigationRailDestination(
                         icon: Icon(Icons.library_books_outlined),
                         selectedIcon: Icon(Icons.library_books),
-                        label: 'Library',
+                        label: Text('Library'),
                       ),
                     ],
                   ),
+                  VerticalDivider(width: 1, color: theme.colorScheme.border),
+                  Expanded(child: content),
                 ],
               );
-            }
-
-            return Row(
-              children: [
-                NavigationRail(
-                  selectedIndex: _destination.index,
-                  backgroundColor: theme.colorScheme.background,
-                  indicatorColor: theme.colorScheme.muted,
-                  labelType: NavigationRailLabelType.all,
-                  minWidth: 88,
-                  onDestinationSelected: (index) =>
-                      _select(WorkspaceDestination.values[index]),
-                  leading: Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.regular),
-                    child: Text('WK', style: theme.textTheme.h4),
-                  ),
-                  destinations: const [
-                    NavigationRailDestination(
-                      icon: Icon(Icons.today_outlined),
-                      selectedIcon: Icon(Icons.today),
-                      label: Text('Today'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.add_box_outlined),
-                      selectedIcon: Icon(Icons.add_box),
-                      label: Text('Capture'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.library_books_outlined),
-                      selectedIcon: Icon(Icons.library_books),
-                      label: Text('Library'),
-                    ),
-                  ],
-                ),
-                VerticalDivider(width: 1, color: theme.colorScheme.border),
-                Expanded(child: content),
-              ],
-            );
-          },
+            },
+          ),
         ),
       ),
     );
@@ -231,6 +251,8 @@ class _WorkspaceContent extends StatelessWidget {
     required this.dependencies,
     required this.capture,
     required this.today,
+    required this.todayKey,
+    required this.libraryVisited,
     required this.libraryGeneration,
     required this.onRetry,
     required this.onCaptured,
@@ -243,6 +265,8 @@ class _WorkspaceContent extends StatelessWidget {
   final AppDependencies dependencies;
   final CaptureSessionController capture;
   final TodayLoadController today;
+  final GlobalKey<TodayScreenState> todayKey;
+  final bool libraryVisited;
   final int libraryGeneration;
   final VoidCallback onRetry;
   final VoidCallback onCaptured;
@@ -256,6 +280,7 @@ class _WorkspaceContent extends StatelessWidget {
       index: destination.index,
       children: [
         TodayScreen(
+          key: todayKey,
           overview: today.overview,
           isInitialLoading: today.isInitialLoading,
           isRefreshing: today.isRefreshing,
@@ -267,11 +292,14 @@ class _WorkspaceContent extends StatelessWidget {
           onReviewModeChanged: onReviewModeChanged,
         ),
         CaptureScreen(controller: capture, onCaptured: onCaptured),
-        LibraryScreen(
-          key: ValueKey('library-$libraryGeneration'),
-          learningItems: dependencies.learningItems,
-          reviews: dependencies.reviews,
-        ),
+        if (libraryVisited)
+          LibraryScreen(
+            key: ValueKey('library-$libraryGeneration'),
+            learningItems: dependencies.learningItems,
+            reviews: dependencies.reviews,
+          )
+        else
+          const SizedBox.shrink(),
       ],
     );
   }

@@ -23,7 +23,7 @@ final class LoadTodayOverview {
   Future<TodayOverview> call({required DateTime now}) async {
     final localNow = now.toLocal();
     final localStart = DateTime(localNow.year, localNow.month, localNow.day);
-    final localEnd = localStart.add(const Duration(days: 1));
+    final localEnd = DateTime(localNow.year, localNow.month, localNow.day + 1);
     final results = await Future.wait<Object?>([
       _learningItems.listDue(at: now.toUtc(), limit: 100),
       _learningItems.listRecent(limit: 5),

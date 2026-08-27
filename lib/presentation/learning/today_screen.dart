@@ -3,13 +3,11 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:whole_knowledge/app/theme/app_radius.dart';
 import 'package:whole_knowledge/app/theme/app_spacing.dart';
 import 'package:whole_knowledge/application/learning/review_repository.dart';
-import 'package:whole_knowledge/application/learning/review_submission_id.dart';
+import 'package:whole_knowledge/application/learning/review_session_controller.dart';
 import 'package:whole_knowledge/application/learning/today_overview.dart';
 import 'package:whole_knowledge/domain/learning/learning_item.dart';
 import 'package:whole_knowledge/domain/learning/review_attempt.dart';
 import 'package:whole_knowledge/presentation/components/compact_editing_context_menu.dart';
-
-enum _ReviewStage { recall, revealed, production, rating }
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({
@@ -36,69 +34,63 @@ class TodayScreen extends StatefulWidget {
   final ValueChanged<bool> onReviewModeChanged;
 
   @override
-  State<TodayScreen> createState() => _TodayScreenState();
+  State<TodayScreen> createState() => TodayScreenState();
 }
 
-class _TodayScreenState extends State<TodayScreen> {
+class TodayScreenState extends State<TodayScreen> {
   final _production = TextEditingController();
   final _productionFocus = FocusNode();
-  List<LearningItem> _queue = [];
-  _ReviewStage _stage = _ReviewStage.recall;
-  bool _reviewing = false;
-  bool _paused = false;
-  bool _completed = false;
-  bool _isSaving = false;
-  String? _error;
-  ReviewRating? _failedRating;
-  String _submissionId = ReviewSubmissionId.generate();
-  int _reviewedInSession = 0;
-  int _reviewTotal = 0;
+  late final ReviewSessionController _review;
+
+  @override
+  void initState() {
+    super.initState();
+    _review = ReviewSessionController(widget.reviews);
+    _review.updateDueItems(widget.overview?.dueItems ?? const []);
+    _review.addListener(_reviewChanged);
+  }
 
   @override
   void didUpdateWidget(covariant TodayScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_reviewing && !_paused && widget.overview != null) {
-      _queue = List.of(widget.overview!.dueItems);
-      if (_queue.isNotEmpty) _completed = false;
+    if (widget.overview != null) {
+      _review.updateDueItems(widget.overview!.dueItems);
     }
   }
 
   @override
   void dispose() {
+    _review.removeListener(_reviewChanged);
+    _review.dispose();
     _production.dispose();
     _productionFocus.dispose();
     super.dispose();
   }
 
+  void _reviewChanged() {
+    if (!mounted) return;
+    if (_production.text != _review.responseText) {
+      _production.value = TextEditingValue(
+        text: _review.responseText,
+        selection: TextSelection.collapsed(offset: _review.responseText.length),
+      );
+    }
+    setState(() {});
+  }
+
   void _startReview() {
     final due = widget.overview?.dueItems ?? const <LearningItem>[];
-    setState(() {
-      _queue = List.of(due);
-      _reviewing = _queue.isNotEmpty;
-      _paused = false;
-      _completed = false;
-      _stage = _ReviewStage.recall;
-      _error = null;
-      _failedRating = null;
-      _production.clear();
-      _reviewedInSession = 0;
-      _reviewTotal = _queue.length;
-      _submissionId = ReviewSubmissionId.generate();
-    });
-    if (_reviewing) widget.onReviewModeChanged(true);
+    if (_review.start(due)) widget.onReviewModeChanged(true);
   }
 
   void _resumeReview() {
-    setState(() {
-      _reviewing = true;
-      _paused = false;
-    });
+    _review.resume();
     widget.onReviewModeChanged(true);
-    if (_stage == _ReviewStage.production) _focusProduction();
+    if (_review.stage == ReviewStage.production) _focusProduction();
   }
 
   Future<void> _pauseReview() async {
-    if (_isSaving) return;
+    if (_review.isSaving) return;
     var confirmed = true;
     if (_production.text.trim().isNotEmpty) {
       confirmed =
@@ -124,77 +116,26 @@ class _TodayScreenState extends State<TodayScreen> {
           false;
     }
     if (!mounted || !confirmed) return;
-    setState(() {
-      _reviewing = false;
-      _paused = true;
-    });
+    _review.pause();
     widget.onReviewModeChanged(false);
   }
 
+  Future<void> pauseReviewFromSystem() => _pauseReview();
+
   void _continueToRating() {
-    final response = _production.text.trim();
-    if (response.isEmpty) {
-      setState(() => _error = 'Write a response before self-rating.');
-      return;
-    }
-    if (response.length > 10000) {
-      setState(
-        () => _error = 'Keep the production response under 10,000 characters.',
-      );
-      return;
-    }
-    setState(() {
-      _stage = _ReviewStage.rating;
-      _error = null;
-    });
+    _review.updateResponse(_production.text);
+    _review.continueToRating();
   }
 
   Future<void> _rate(ReviewRating rating) async {
-    if (_isSaving) return;
-    setState(() {
-      _isSaving = true;
-      _error = null;
-    });
-    try {
-      final updatedItem = await widget.reviews.completeReview(
-        item: _queue.first,
-        submissionId: _submissionId,
-        responseText: _production.text.trim(),
-        rating: rating,
-      );
-      if (!mounted) return;
-      _queue.removeAt(0);
-      _reviewedInSession += 1;
-      _production.clear();
-      _submissionId = ReviewSubmissionId.generate();
-      setState(() {
-        _isSaving = false;
-        _failedRating = null;
-        _stage = _ReviewStage.recall;
-        if (_queue.isEmpty) {
-          _reviewing = false;
-          _completed = true;
-        }
-      });
-      if (_queue.isEmpty) widget.onReviewModeChanged(false);
-      widget.onCompleted(updatedItem);
-    } on Object {
-      if (!mounted) return;
-      setState(() {
-        _isSaving = false;
-        _stage = _ReviewStage.rating;
-        _failedRating = rating;
-        _error = 'Could not confirm this review. Retry safely with the same response, or discard it and reload the queue.';
-      });
-    }
+    final updatedItem = await _review.rate(rating);
+    if (!mounted || updatedItem == null) return;
+    if (_review.queue.isEmpty) widget.onReviewModeChanged(false);
+    widget.onCompleted(updatedItem);
   }
 
   void _enterProduction() {
-    setState(() {
-      _stage = _ReviewStage.production;
-      _error = null;
-      _failedRating = null;
-    });
+    _review.enterProduction();
     _focusProduction();
   }
 
@@ -206,7 +147,7 @@ class _TodayScreenState extends State<TodayScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_reviewing) return _buildReview(context);
+    if (_review.isReviewing) return _buildReview(context);
     return _buildToday(context);
   }
 
@@ -297,7 +238,18 @@ class _TodayScreenState extends State<TodayScreen> {
             children: [
               Text('Review queue', style: theme.textTheme.h3),
               const SizedBox(height: AppSpacing.compact),
-              if (widget.isRefreshing)
+              if (_review.isPaused) ...[
+                Text(
+                  'Review paused. Your current response is kept in this session.',
+                  style: theme.textTheme.p,
+                ),
+                const SizedBox(height: AppSpacing.regular),
+                ShadButton.outline(
+                  key: const ValueKey('resume-review'),
+                  onPressed: _resumeReview,
+                  child: const Text('Resume review'),
+                ),
+              ] else if (widget.isRefreshing)
                 Text('Refreshing review queue.', style: theme.textTheme.p)
               else if (overview.dueItems.isNotEmpty) ...[
                 Text(
@@ -316,15 +268,7 @@ class _TodayScreenState extends State<TodayScreen> {
                 const SizedBox(height: AppSpacing.compact),
                 Text('Nothing is due right now.', style: theme.textTheme.p),
               ],
-              if (_paused) ...[
-                const SizedBox(height: AppSpacing.regular),
-                ShadButton.outline(
-                  key: const ValueKey('resume-review'),
-                  onPressed: _resumeReview,
-                  child: const Text('Resume paused review'),
-                ),
-              ],
-              if (_completed) ...[
+              if (_review.completed) ...[
                 const SizedBox(height: AppSpacing.regular),
                 Text('Review complete.', style: theme.textTheme.p),
               ],
@@ -360,7 +304,7 @@ class _TodayScreenState extends State<TodayScreen> {
 
   Widget _buildReview(BuildContext context) {
     final theme = ShadTheme.of(context);
-    final item = _queue.first;
+    final item = _review.queue.first;
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
         padding: EdgeInsets.symmetric(
@@ -381,14 +325,14 @@ class _TodayScreenState extends State<TodayScreen> {
                     children: [
                       ShadButton.ghost(
                         key: const ValueKey('pause-review'),
-                        enabled: !_isSaving,
+                        enabled: !_review.isSaving,
                         onPressed: _pauseReview,
                         leading: const Icon(Icons.close, size: 18),
                         child: const Text('Pause'),
                       ),
                       const Spacer(),
                       Text(
-                        '${_reviewedInSession + 1} of $_reviewTotal',
+                        '${_review.reviewedInSession + 1} of ${_review.reviewTotal}',
                         style: theme.textTheme.muted,
                       ),
                     ],
@@ -415,14 +359,14 @@ class _TodayScreenState extends State<TodayScreen> {
                             style: theme.textTheme.muted,
                           ),
                         ],
-                        if (_stage == _ReviewStage.recall) ...[
+                        if (_review.stage == ReviewStage.recall) ...[
                           const SizedBox(height: AppSpacing.regular),
                           Text(
                             'Recall the meaning before revealing your notes.',
                             style: theme.textTheme.p,
                           ),
                         ],
-                        if (_stage == _ReviewStage.revealed) ...[
+                        if (_review.stage == ReviewStage.revealed) ...[
                           const SizedBox(height: AppSpacing.pageCompact),
                           Text('Meaning', style: theme.textTheme.small),
                           const SizedBox(height: AppSpacing.compact),
@@ -437,8 +381,8 @@ class _TodayScreenState extends State<TodayScreen> {
                             Text(item.context!, style: theme.textTheme.p),
                           ],
                         ],
-                        if (_stage == _ReviewStage.production ||
-                            _stage == _ReviewStage.rating) ...[
+                        if (_review.stage == ReviewStage.production ||
+                            _review.stage == ReviewStage.rating) ...[
                           const SizedBox(height: AppSpacing.pageCompact),
                           Text(
                             'Use it in a sentence or write what you would say.',
@@ -449,26 +393,24 @@ class _TodayScreenState extends State<TodayScreen> {
                             key: const ValueKey('production-response'),
                             controller: _production,
                             focusNode: _productionFocus,
-                            readOnly: _stage == _ReviewStage.rating,
-                            enabled: !_isSaving,
+                            readOnly: _review.stage == ReviewStage.rating,
+                            enabled: !_review.isSaving,
                             contextMenuBuilder: compactEditingContextMenu,
                             placeholder: const Text('Write your response'),
                             minHeight: 128,
                             maxHeight: 260,
-                            onChanged: (_) {
-                              if (_error != null) setState(() => _error = null);
-                            },
+                            onChanged: _review.updateResponse,
                           ),
                         ],
                       ],
                     ),
                   ),
-                  if (_error != null) ...[
+                  if (_review.error != null) ...[
                     const SizedBox(height: AppSpacing.regular),
                     Semantics(
                       liveRegion: true,
                       child: Text(
-                        _error!,
+                        _review.error!,
                         style: theme.textTheme.small.copyWith(
                           color: theme.colorScheme.destructive,
                         ),
@@ -488,22 +430,22 @@ class _TodayScreenState extends State<TodayScreen> {
 
   Widget _reviewActions(BuildContext context) {
     final theme = ShadTheme.of(context);
-    return switch (_stage) {
-      _ReviewStage.recall => ShadButton(
+    return switch (_review.stage) {
+      ReviewStage.recall => ShadButton(
         key: const ValueKey('reveal-answer'),
-        onPressed: () => setState(() => _stage = _ReviewStage.revealed),
+        onPressed: _review.reveal,
         child: const Text('Reveal notes'),
       ),
-      _ReviewStage.revealed => ShadButton(
+      ReviewStage.revealed => ShadButton(
         onPressed: _enterProduction,
         child: const Text('Continue to production'),
       ),
-      _ReviewStage.production => ShadButton(
+      ReviewStage.production => ShadButton(
         key: const ValueKey('continue-to-rating'),
         onPressed: _continueToRating,
         child: const Text('Continue to self-rating'),
       ),
-      _ReviewStage.rating => Column(
+      ReviewStage.rating => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('How did that feel?', style: theme.textTheme.h4),
@@ -511,12 +453,12 @@ class _TodayScreenState extends State<TodayScreen> {
           Wrap(
             spacing: AppSpacing.compact,
             runSpacing: AppSpacing.compact,
-            children: _failedRating == null
+            children: _review.failedRating == null
                 ? ReviewRating.values
                       .map(
                         (rating) => ShadButton.outline(
                           key: ValueKey('rating-${rating.name}'),
-                          enabled: !_isSaving,
+                          enabled: !_review.isSaving,
                           onPressed: () => _rate(rating),
                           child: Text(_ratingLabel(rating)),
                         ),
@@ -525,13 +467,15 @@ class _TodayScreenState extends State<TodayScreen> {
                 : [
                     ShadButton.outline(
                       key: const ValueKey('retry-review'),
-                      enabled: !_isSaving,
-                      onPressed: () => _rate(_failedRating!),
-                      child: Text('Retry ${_ratingLabel(_failedRating!)}'),
+                      enabled: !_review.isSaving,
+                      onPressed: () => _rate(_review.failedRating!),
+                      child: Text(
+                        'Retry ${_ratingLabel(_review.failedRating!)}',
+                      ),
                     ),
                     ShadButton.outline(
                       key: const ValueKey('reload-review-queue'),
-                      enabled: !_isSaving,
+                      enabled: !_review.isSaving,
                       onPressed: _reloadQueue,
                       child: const Text('Discard response and reload'),
                     ),
@@ -543,24 +487,16 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   void _reloadQueue() {
-    setState(() {
-      _reviewing = false;
-      _paused = false;
-      _completed = false;
-      _stage = _ReviewStage.recall;
-      _error = null;
-      _failedRating = null;
-      _production.clear();
-    });
+    _review.discard();
     widget.onReviewModeChanged(false);
     widget.onReload();
   }
 
-  String get _stageLabel => switch (_stage) {
-    _ReviewStage.recall => 'Retrieve',
-    _ReviewStage.revealed => 'Check',
-    _ReviewStage.production => 'Produce',
-    _ReviewStage.rating => 'Self-rate',
+  String get _stageLabel => switch (_review.stage) {
+    ReviewStage.recall => 'Retrieve',
+    ReviewStage.revealed => 'Check',
+    ReviewStage.production => 'Produce',
+    ReviewStage.rating => 'Self-rate',
   };
 
   static String _todaySummary(TodayOverview overview) =>

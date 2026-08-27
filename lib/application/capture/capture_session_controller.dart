@@ -40,12 +40,19 @@ final class CaptureSessionController {
       _listeners.remove(listener);
 
   Future<bool> restore() async {
-    final saved = await _drafts.read();
-    draft = saved ?? const CaptureDraft();
-    restored = saved?.isMeaningful ?? false;
-    isRestoring = false;
-    _notify();
-    return restored;
+    try {
+      final saved = await _drafts.read();
+      draft = saved ?? const CaptureDraft();
+      restored = saved?.isMeaningful ?? false;
+      return restored;
+    } on Object {
+      draft = const CaptureDraft();
+      restored = false;
+      return false;
+    } finally {
+      isRestoring = false;
+      _notify();
+    }
   }
 
   void update(CaptureDraft value) {
@@ -100,7 +107,15 @@ final class CaptureSessionController {
 
     isSaving = true;
     _debounce?.cancel();
-    await _drafts.write(draft);
+    try {
+      await _drafts.write(draft);
+    } on Object {
+      isSaving = false;
+      saveError =
+          'Could not secure this draft locally. Your input is still here.';
+      _notify();
+      return null;
+    }
     _notify();
     try {
       final item = await _learningItems.create(
@@ -113,7 +128,7 @@ final class CaptureSessionController {
           source: draft.source,
         ),
       );
-      await _drafts.clear();
+      await _clearAfterSuccessfulCreate();
       draft = const CaptureDraft();
       lookup = null;
       lookupError = null;
@@ -129,9 +144,32 @@ final class CaptureSessionController {
     }
   }
 
+  Future<void> _clearAfterSuccessfulCreate() async {
+    try {
+      await _drafts.clear();
+    } on Object {
+      // The server write has already committed. Overwriting with an empty
+      // versioned record prevents a stale restore without inviting a duplicate
+      // remote create.
+      try {
+        await _drafts.write(const CaptureDraft());
+      } on Object {
+        // A completely unavailable application-support directory cannot be
+        // repaired here. The successful server write remains authoritative.
+      }
+    }
+  }
+
   Future<void> discard() async {
     _debounce?.cancel();
-    await _drafts.clear();
+    try {
+      await _drafts.clear();
+    } on Object {
+      saveError =
+          'Could not discard the local draft. Your input is still here.';
+      _notify();
+      return;
+    }
     draft = const CaptureDraft();
     lookup = null;
     lookupError = null;
@@ -143,10 +181,16 @@ final class CaptureSessionController {
 
   Future<void> flush() async {
     _debounce?.cancel();
-    if (draft.isMeaningful) {
-      await _drafts.write(draft);
-    } else {
-      await _drafts.clear();
+    try {
+      if (draft.isMeaningful) {
+        await _drafts.write(draft);
+      } else {
+        await _drafts.clear();
+      }
+    } on Object {
+      saveError =
+          'Could not save this draft locally. Your input is still here.';
+      _notify();
     }
   }
 

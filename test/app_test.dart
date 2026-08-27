@@ -55,6 +55,20 @@ void main() {
     expect(find.byType(NavigationBar), findsNothing);
   });
 
+  testWidgets('loads Library only after the first visit', (tester) async {
+    final dependencies = fakeDependencies(items: [learningItem()]);
+    final learningItems =
+        dependencies.learningItems as FakeLearningItemRepository;
+    await tester.pumpWidget(WholeKnowledgeApp(dependencies: dependencies));
+    await tester.pumpAndSettle();
+
+    expect(learningItems.listPageCalls, 0);
+
+    await tester.tap(find.text('Library').last);
+    await tester.pumpAndSettle();
+    expect(learningItems.listPageCalls, 1);
+  });
+
   testWidgets('recovers from an initial learning-item load failure', (
     tester,
   ) async {
@@ -191,6 +205,54 @@ void main() {
     expect(find.text('Je prends mon temps.'), findsOneWidget);
     expect(find.text('verb'), findsOneWidget);
     expect(find.text('Library'), findsWidgets);
+  });
+
+  testWidgets('ignores stale history after a fast wide-layout selection', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(1200, 800));
+    final first = learningItem(id: 'item-a', content: 'first item');
+    final second = learningItem(id: 'item-b', content: 'second item');
+    final dependencies = fakeDependencies(items: [first, second]);
+    final reviews = dependencies.reviews as FakeReviewRepository;
+    reviews.attemptGates[first.id] = Completer<List<ReviewAttempt>>();
+    reviews.attempts.add(
+      ReviewAttempt(
+        id: 'attempt-b',
+        userId: 'user-1',
+        learningItemId: second.id,
+        reviewSubmissionId: 'submission-b',
+        attemptType: ReviewAttemptType.production,
+        rating: ReviewRating.good,
+        responseText: 'second response',
+        createdAt: DateTime.utc(2026, 8, 27),
+      ),
+    );
+    await tester.pumpWidget(WholeKnowledgeApp(dependencies: dependencies));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Library').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('library-item-item-a')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('library-item-item-b')));
+    await tester.pumpAndSettle();
+
+    reviews.attemptGates[first.id]!.complete([
+      ReviewAttempt(
+        id: 'attempt-a',
+        userId: 'user-1',
+        learningItemId: first.id,
+        reviewSubmissionId: 'submission-a',
+        attemptType: ReviewAttemptType.production,
+        rating: ReviewRating.hard,
+        responseText: 'stale first response',
+        createdAt: DateTime.utc(2026, 8, 27),
+      ),
+    ]);
+    await tester.pumpAndSettle();
+
+    expect(find.text('second response'), findsOneWidget);
+    expect(find.text('stale first response'), findsNothing);
   });
 
   testWidgets('preserves a capture draft across the adaptive breakpoint', (
@@ -385,6 +447,27 @@ void main() {
     expect(find.byType(NavigationRail), findsNothing);
     expect(find.text('Je garde ma réponse.'), findsOneWidget);
     expect(find.text('Continue to self-rating'), findsOneWidget);
+  });
+
+  testWidgets('Android system back pauses review and restores navigation', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(390, 844));
+    await tester.pumpWidget(
+      WholeKnowledgeApp(
+        dependencies: fakeDependencies(items: [learningItem()]),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('start-review')));
+    await tester.pump();
+
+    expect(find.byType(NavigationBar), findsNothing);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byKey(const ValueKey('resume-review')), findsOneWidget);
   });
 
   testWidgets('retries an ambiguous review with immutable idempotency data', (

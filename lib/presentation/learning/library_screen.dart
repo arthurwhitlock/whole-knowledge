@@ -231,6 +231,7 @@ class _LibraryDetailState extends State<_LibraryDetail> {
   bool _loading = false;
   bool _hasMore = true;
   String? _error;
+  int _requestGeneration = 0;
 
   @override
   void initState() {
@@ -242,23 +243,31 @@ class _LibraryDetailState extends State<_LibraryDetail> {
   void didUpdateWidget(covariant _LibraryDetail oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.item.id != widget.item.id) {
+      _requestGeneration += 1;
       _attempts.clear();
       _hasMore = true;
       _error = null;
+      _loading = false;
       _loadMore();
     }
   }
 
   Future<void> _loadMore() async {
     if (_loading || !_hasMore) return;
+    final generation = ++_requestGeneration;
+    final itemId = widget.item.id;
     setState(() => _loading = true);
     try {
       final page = await widget.reviews.listAttempts(
-        learningItemId: widget.item.id,
+        learningItemId: itemId,
         offset: _attempts.length,
         limit: _pageSize,
       );
-      if (!mounted) return;
+      if (!mounted ||
+          generation != _requestGeneration ||
+          itemId != widget.item.id) {
+        return;
+      }
       setState(() {
         _attempts.addAll(page);
         _hasMore = page.length == _pageSize;
@@ -266,7 +275,7 @@ class _LibraryDetailState extends State<_LibraryDetail> {
         _error = null;
       });
     } on Object {
-      if (!mounted) return;
+      if (!mounted || generation != _requestGeneration) return;
       setState(() {
         _loading = false;
         _error = 'Could not load review history.';
