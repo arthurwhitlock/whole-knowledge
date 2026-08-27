@@ -182,26 +182,311 @@ Usage:
 - Navigation or state-management framework changes.
 - Hosted Supabase mutation without separate explicit approval.
 
+## Engineering architecture
+
+The complete founder-friction scope is accepted. Breadth is divided into narrow boundaries rather than a new framework:
+
+```text
+Presentation
+├── LearningWorkspace
+│   ├── TodayLoadController ───────────┐
+│   ├── CaptureSessionController ──────┼── application/domain contracts
+│   └── ReviewSessionController ───────┘
+│
+Application/domain
+├── CaptureDraftRepository
+├── LexicalProvider
+├── LearningItemRepository (targeted reads + existing writes)
+├── ReviewRepository (existing write + bounded reads)
+├── LoadTodayOverview
+└── provider-neutral draft, lexical, overview, and page values
+│
+Infrastructure
+├── FileCaptureDraftRepository ── path_provider + dart:io
+├── EnglishDictionaryApiProvider ── package:http
+├── SupabaseLearningItemRepository
+└── SupabaseReviewRepository
+```
+
+Controllers are small plain-Dart transition owners. They are not a state-management framework, service locator, or workspace-global store. Widgets continue to own focus nodes, text-editing adapters, scroll controllers, and rendering.
+
+## Capture draft persistence
+
+Use the official `path_provider` application-support directory on Android and Linux. Store one versioned JSON document named for the Capture draft. Do not use `shared_preferences`: its official documentation warns that asynchronous persistence is not guaranteed immediately and should not hold critical data.
+
+```text
+field edit / kind change / sense selection
+  → CaptureSessionController revision N
+  → reset 400ms debounce
+  → enqueue write after all earlier writes
+  → encode versioned JSON
+  → write sibling temp file with flush: true
+  → rename temp over canonical draft
+  → mark revision N persisted
+
+lifecycle inactive/paused/detached
+  → cancel debounce
+  → flush latest revision immediately
+```
+
+Draft schema:
+
+```json
+{
+  "version": 1,
+  "kind": "vocabulary",
+  "content": "record",
+  "meaning": "stored information",
+  "context": "...",
+  "source": "...",
+  "partOfSpeech": "noun"
+}
+```
+
+Rules:
+
+- Missing file means no draft.
+- Corrupt JSON, unknown versions, invalid field types, or oversized fields fail soft and surface a restrained local-storage status; they never crash startup.
+- Writes are serialized and revision-checked so an older debounce cannot overwrite newer input.
+- Successful remote Save transitions once into local-clear retry. A clear failure never re-submits the remote create; the user can retry only the clear operation.
+- Failed remote Save keeps the persisted and in-memory draft.
+- Explicit Discard clears local storage before resetting the visible form. If clear fails, the form remains and reports the failure.
+- Cold start waits for the local draft read before choosing Today versus Capture, preventing a flash of the wrong destination.
+- A meaningful draft has any nonblank authored field or selected POS. Kind alone is not meaningful.
+
+## Dictionary provider
+
+Select EnglishDictionaryAPI (`https://englishdictionaryapi.com/api/v1/words/{word}`) for this iteration.
+
+- Live verification on 2026-08-27 returned HTTP 200 for `record`, three POS groups, 16 senses, and 999 of 1000 hourly requests remaining.
+- The service documents an English Wiktionary dump dated 2026-06-01 and CC BY-SA 4.0 data licensing.
+- No account or API key is required, so no secret is embedded in the client.
+- The UI labels the action as English lookup. Other languages retain the complete manual workflow.
+- Results show `Definitions from Wiktionary contributors · CC BY-SA 4.0` with a license/source link. Add the same attribution to `THIRD_PARTY_NOTICES.md`.
+
+Network flow:
+
+```text
+Find English meaning
+  → trim and validate query (nonblank, bounded length)
+  → coalesce identical in-flight query
+  → injected http.Client.send()
+      ├── 10 second timeout
+      ├── HTTP 404 → no results
+      ├── non-2xx → recoverable provider failure
+      └── stream > 1 MiB → abort as recoverable provider failure
+  → strict JSON shape/field-length validation
+  → normalize common POS aliases; preserve safe unknown labels
+  → provider-neutral LexicalLookupResult
+  → inline grouped sense selection
+```
+
+No response, provider identifier, or lookup cache is persisted. Selecting a sense copies its definition and normalized POS into the Capture draft; Meaning remains editable.
+
+## Database change
+
+Create one forward-only migration:
+
+```sql
+alter table public.learning_items
+  add column part_of_speech text;
+
+alter table public.learning_items
+  add constraint learning_items_part_of_speech_check
+  check (
+    part_of_speech is null
+    or (
+      length(btrim(part_of_speech)) between 1 and 80
+      and part_of_speech ~ '[^[:space:]]'
+    )
+  );
+
+grant insert (part_of_speech) on public.learning_items to authenticated;
+```
+
+- Existing rows remain null; no backfill or historical rewrite occurs.
+- Update capture normalization, domain models, Supabase insert mapping, and row mapping.
+- Keep RLS unchanged and verify ownership, spoof prevention, column grants, and nullable round trips with pgTAP.
+- Run local reset, database tests, and real repository integration tests.
+- Run `gstack careful` before treating the migration as complete.
+- Do not apply the migration to Frankfurt until the user gives separate explicit approval. Never contact Tokyo.
+
+## Targeted read model
+
+`LoadTodayOverview` coordinates application contracts and returns one immutable snapshot:
+
+```text
+LoadTodayOverview(local day bounds, now)
+  ├── LearningItemRepository.listDue(now)              paged internally
+  ├── LearningItemRepository.listRecent(limit: 5)      one bounded query
+  ├── LearningItemRepository.findNextReview(after: now) limit 1
+  └── ReviewRepository.listBetween(dayStartUtc, dayEndUtc)
+        ├── paged internally when > Supabase row limit
+        └── unique recent item ids
+              → LearningItemRepository.listByIds(ids)  one batched query
+  → reviewed count, production count, practiced items, next review
+```
+
+- The local calendar day is calculated outside infrastructure and passed as UTC bounds.
+- Today initial load and refresh use generation IDs; stale completions are ignored.
+- A refresh keeps the previous snapshot interactive and reports refresh failure separately.
+- Library `listAll()` loads lazily when Library is first selected, remains cached, and becomes dirty after capture/review mutations.
+- Item history uses stable `created_at desc, id desc` ordering and pages 50 attempts at a time. The UI deduplicates by attempt ID when appending a page.
+- No widget sees Supabase row maps and no query runs once per displayed item.
+
+## Explicit state machines
+
+```text
+TodayLoadState
+initialLoading
+  ├── success → data(snapshot, refreshing: false)
+  └── failure → initialError
+data
+  ├── refresh → data(previous, refreshing: true)
+  ├── refresh success → data(new, refreshing: false)
+  └── refresh failure → data(previous, refreshError)
+```
+
+```text
+ReviewSessionState
+idle → active(recall → revealed → production → rating)
+active ── Back ──→ paused ── Resume ──→ active
+active ── save failure ──→ active(same response + submission id, error)
+active ── successful rating ──→ next item or completed
+paused ── explicit discard ──→ idle
+```
+
+```text
+CaptureSessionState
+restoring → clean | restored(draft) | restoreWarning
+clean/restored → dirty(revision)
+dirty → lookupLoading → lookupResults | lookupError
+dirty → savingRemote → clearingLocal → saved
+savingRemote failure → dirty(same draft, error)
+clearingLocal failure → clearRetry(remote already saved)
+dirty → discardingLocal → clean | dirty(clear error)
+```
+
+These state objects prevent boolean combinations such as initial-loading plus loaded-data, paused plus completed, or remote-saved plus resubmittable.
+
+## Failure modes
+
+| Code path | Realistic failure | Handling | Test | User-visible result |
+|---|---|---|---|---|
+| Draft load | Truncated JSON after external interruption | Ignore invalid document, retain file for diagnostics, start usable form | Unit | Restrained restore warning; no crash |
+| Draft save | Older debounced write finishes last | Serialized revision queue | Unit | Latest text remains after reconstruction |
+| Draft clear | Remote item saved but file removal fails | Enter clear-retry state; never repeat remote create | Unit + widget | Saved status with Retry cleanup; input not silently duplicated |
+| Lookup | Timeout, 429, 500, disconnect | Bounded request and recoverable error | Unit + widget | Manual field and Retry remain available |
+| Lookup | Malformed or >1 MiB response | Reject before domain mapping | Unit | Manual-safe provider error |
+| Today load | Empty result arrives after a newer content result | Generation guard ignores stale completion | Unit + widget | No false empty flash |
+| Today refresh | Network failure with cached snapshot | Preserve snapshot and expose refresh status | Unit + widget | Existing content remains interactive |
+| Day summary | Local midnight crosses UTC date | Explicit local-day-to-UTC bounds | Unit | Counts match the user's calendar day |
+| Library history | More than one Supabase page or page overlap | 50-row pages, stable ordering, ID dedupe | Repository + widget | Load more without duplicates |
+| Detail load | Selected item changes while history request is in flight | Selection generation guard | Widget | Old history never appears under new item |
+| Review pause | Background refresh supplies a new due queue | Paused state rejects queue replacement | Unit + widget | Response and progress remain intact |
+| Context menu | Android exposes PROCESS_TEXT applications | Filter to essential button types on narrow Android only | Unit/widget where possible + runtime | Compact Cut/Copy/Paste/Select all toolbar |
+| Migration | Client can set protected scheduling fields or another owner | Existing RLS plus column grant tests | pgTAP + integration | Unauthorized mutation fails |
+
+No identified failure is silent without both handling and a planned test.
+
+## Test coverage plan
+
+```text
+CODE PATHS                                      USER FLOWS
+[NEW] Capture draft                             [NEW] Leave Capture → process death → restore
+  ├── missing/valid/corrupt/version               ├── restored status and destination
+  ├── serialized debounce + lifecycle flush       ├── Save clears / failure preserves
+  └── clear retry without duplicate remote save   └── explicit Discard clears
+[NEW] Lexical provider                          [NEW] Find meaning
+  ├── multi-POS/sense mapping                     ├── choose sense → editable meaning/POS
+  ├── 404/timeout/non-2xx                          └── failure → manual save remains usable
+  └── malformed/oversized body
+[NEW] Today overview                            [NEW] Today continuity
+  ├── initial/data/error                           ├── no empty before load
+  ├── stale refresh generation                     ├── refresh preserves content
+  └── local-day aggregation                        └── waiting/completed/first-use states
+[NEW] Library history                           [NEW] Open item detail
+  ├── page/order/dedupe                            ├── mobile full detail
+  └── selection generation                         └── desktop master-detail + load more
+[EXTEND] Review session                         [EXTEND] Focused production
+  ├── active/paused/resumed                        ├── nav hidden + safe Back/Resume
+  └── immutable failure retry data                 └── compact mobile edit menu
+```
+
+Planned files and assertions:
+
+- `test/infrastructure/local/file_capture_draft_repository_test.dart`: missing, round-trip, corrupt, unknown version, flush/write/clear failures, serialized latest-write behavior.
+- `test/infrastructure/dictionary/english_dictionary_api_provider_test.dart`: live-shape fixture mapping, multi-POS/senses, aliases, unknown safe POS, 404, timeout, non-2xx, invalid JSON, invalid fields, 1 MiB cap.
+- `test/application/learning/capture_session_controller_test.dart`: restore threshold, debounce, lifecycle flush, failed save preservation, successful clear, clear retry, discard.
+- `test/application/learning/today_load_controller_test.dart`: initial/data/error, stale completion, refresh preservation, refresh failure.
+- `test/application/learning/load_today_overview_test.dart`: reviewed/production counts, practiced order/dedupe, timezone bounds, next review.
+- `test/application/learning/review_session_controller_test.dart`: all stage transitions, pause/resume, queue update rejection, save retry identity, explicit discard.
+- `test/infrastructure/supabase/supabase_row_mappers_test.dart`: nullable and populated POS plus attempt ordering data.
+- `test/infrastructure/supabase/supabase_learning_item_repository_test.dart`: targeted queries, bounded limits, batched IDs, POS insert mapping.
+- `test/infrastructure/supabase/supabase_review_repository_test.dart`: time-window pagination and item-history pagination/order.
+- `test/app_test.dart` or focused presentation tests: every user-visible requirement listed in the original brief at narrow, medium, and wide widths.
+- `supabase/tests/database/learning_loop_test.sql`: column, constraint, grants, RLS, null compatibility, POS round trip, protected columns.
+- `test/integration/local_supabase_review_concurrency_test.dart`: retain existing review concurrency and extend real capture/read behavior where relevant.
+
+Critical end-to-end QA journey:
+
+```text
+Capture draft → cold restart restore → lookup/select/edit → save
+→ Today recent + due → focused Review/pause/resume/complete
+→ Today completed summary → Library item detail/history
+```
+
+## Implementation order
+
+Sequential implementation, no worktree parallelization. The three logical commits share domain models, repository interfaces, `AppDependencies`, `LearningWorkspace`, and the main widget test harness. Parallel worktrees would create more merge risk than time saved.
+
+```text
+1. Capture reliability and lookup
+   domain/contracts → file + HTTP adapters → Capture controller/UI → tests
+2. Today and Library continuity
+   targeted repository reads → overview/load state → adaptive surfaces → tests
+3. Review and visual polish
+   review state → shell focus behavior → context menu → tokens/DESIGN.md → tests
+4. Migration/local database validation → full builds → gstack review/careful/QA
+```
+
 ## Implementation tasks
 
-- [ ] **T1 (P1, human: ~1 day / Codex: ~1h)** — Capture — Add local draft restoration, explicit discard, restored status, and regression tests.
-- [ ] **T2 (P1, human: ~1 day / Codex: ~1h)** — Capture — Add explicit inline dictionary lookup with grouped POS/senses and editable selection.
-- [ ] **T3 (P1, human: ~1.5 days / Codex: ~1.5h)** — Today — Implement truthful load/refresh states and adaptive continuity home.
-- [ ] **T4 (P1, human: ~1.5 days / Codex: ~1.5h)** — Library — Implement adaptive item detail and chronological review history.
-- [ ] **T5 (P1, human: ~1 day / Codex: ~1h)** — Review — Add focus mode, pause/resume preservation, compact Android selection menu, and mobile spacing polish.
-- [ ] **T6 (P2, human: ~0.5 day / Codex: ~30m)** — Design system — Add `DESIGN.md`, semantic radii, stable organic variants, and component usage updates.
-- [ ] **T7 (P1, human: ~1 day / Codex: ~1h)** — Adaptive QA — Cover narrow, medium, wide, keyboard, touch, text scaling, refresh, and breakpoint state preservation.
+- [ ] **T1 (P1, human: ~1 day / Codex: ~1h)** — Capture — Add versioned atomic draft storage and `CaptureSessionController`.
+  - Surfaced by: Architecture review — preferences storage does not promise critical-write durability.
+  - Verify: repository and controller unit tests plus cold-start widget restoration.
+- [ ] **T2 (P1, human: ~1 day / Codex: ~1h)** — Dictionary — Add the bounded EnglishDictionaryAPI adapter and inline grouped selection.
+  - Surfaced by: Architecture/performance reviews — provider neutrality, licensing, timeout, and response cap.
+  - Verify: HTTP adapter unit tests and manual-safe widget failure tests.
+- [ ] **T3 (P1, human: ~0.5 day / Codex: ~30m)** — Schema — Add nullable `part_of_speech` through a local-only forward migration.
+  - Surfaced by: Architecture review — selected POS must sync without provider IDs.
+  - Verify: mapper, pgTAP, local reset, and real repository integration tests.
+- [ ] **T4 (P1, human: ~1.5 days / Codex: ~1.5h)** — Today — Add targeted queries, immutable overview, explicit load states, and adaptive continuity UI.
+  - Surfaced by: Architecture/code-quality reviews — full-account reload and invalid boolean states.
+  - Verify: aggregation/controller/repository tests and initial/refresh widget regressions.
+- [ ] **T5 (P1, human: ~1.5 days / Codex: ~1.5h)** — Library — Add lazy Library loading, adaptive item detail, and paged review history.
+  - Surfaced by: Architecture/performance reviews — dead rows and potentially unbounded history.
+  - Verify: pagination/order tests plus narrow/wide detail widget flows.
+- [ ] **T6 (P1, human: ~1 day / Codex: ~1h)** — Review — Add explicit session state, focus mode, pause/resume, and Android essential-action toolbar.
+  - Surfaced by: Code-quality review — independent booleans cannot safely encode pause and refresh.
+  - Verify: transition unit tests, adaptive navigation tests, and Android runtime QA.
+- [ ] **T7 (P2, human: ~0.5 day / Codex: ~30m)** — Design system — Add `DESIGN.md`, semantic radii, stable organic variants, and component usage updates.
+  - Surfaced by: Design-system review — rules need executable tokens and durable documentation.
+  - Verify: token tests where useful and visual QA at all three widths.
+- [ ] **T8 (P1, human: ~1 day / Codex: ~1h)** — Verification — Run the full layered suite, builds, boundary/config checks, gstack review, careful, and QA.
+  - Surfaced by: Test review — every new boundary needs error-path evidence.
+  - Verify: commands and journey listed in this plan.
 
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |---|---|---|---:|---|---|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | Not run | Not required for this bounded founder-friction pass |
-| Codex Review | `/codex review` | Independent second opinion | 0 | Not run | — |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 0 | Required next | Draft persistence, provider boundary, schema, and queries remain to resolve |
+| Codex Review | `/codex review` | Independent second opinion | 0 | Not run | Outside voice skipped; implementation diff receives requested `/review` |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | Clear | 6 issues resolved, 0 critical gaps, full test matrix defined |
 | Design Review | `/plan-design-review` | UI/UX gaps | 1 | Clear | 7/10 → 10/10; 10 decisions resolved |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | Not run | Not applicable |
 
-**VERDICT:** DESIGN CLEARED; engineering review required before implementation.
+**VERDICT:** DESIGN + ENG CLEARED — ready to implement.
 
 NO UNRESOLVED DECISIONS
