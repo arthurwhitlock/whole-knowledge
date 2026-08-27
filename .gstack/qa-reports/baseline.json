@@ -1,0 +1,13 @@
+{
+  "application": "Whole Knowledge",
+  "date": "2026-08-27",
+  "target": "Flutter Linux with local Supabase",
+  "viewports": ["1280x720", "390x844"],
+  "health_score": 100,
+  "critical_open": 0,
+  "major_open": 0,
+  "minor_open": 0,
+  "findings_fixed": 1,
+  "android_runtime_available": false,
+  "verdict": "pass"
+}

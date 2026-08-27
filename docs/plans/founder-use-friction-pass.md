@@ -452,28 +452,28 @@ Sequential implementation, no worktree parallelization. The three logical commit
 
 ## Implementation tasks
 
-- [ ] **T1 (P1, human: ~1 day / Codex: ~1h)** — Capture — Add versioned atomic draft storage and `CaptureSessionController`.
+- [x] **T1 (P1, human: ~1 day / Codex: ~1h)** — Capture — Add versioned atomic draft storage and `CaptureSessionController`.
   - Surfaced by: Architecture review — preferences storage does not promise critical-write durability.
   - Verify: repository and controller unit tests plus cold-start widget restoration.
-- [ ] **T2 (P1, human: ~1 day / Codex: ~1h)** — Dictionary — Add the bounded EnglishDictionaryAPI adapter and inline grouped selection.
+- [x] **T2 (P1, human: ~1 day / Codex: ~1h)** — Dictionary — Add the bounded EnglishDictionaryAPI adapter and inline grouped selection.
   - Surfaced by: Architecture/performance reviews — provider neutrality, licensing, timeout, and response cap.
   - Verify: HTTP adapter unit tests and manual-safe widget failure tests.
-- [ ] **T3 (P1, human: ~0.5 day / Codex: ~30m)** — Schema — Add nullable `part_of_speech` through a local-only forward migration.
+- [x] **T3 (P1, human: ~0.5 day / Codex: ~30m)** — Schema — Add nullable `part_of_speech` through a local-only forward migration.
   - Surfaced by: Architecture review — selected POS must sync without provider IDs.
   - Verify: mapper, pgTAP, local reset, and real repository integration tests.
-- [ ] **T4 (P1, human: ~1.5 days / Codex: ~1.5h)** — Today — Add targeted queries, immutable overview, explicit load states, and adaptive continuity UI.
+- [x] **T4 (P1, human: ~1.5 days / Codex: ~1.5h)** — Today — Add targeted queries, immutable overview, explicit load states, and adaptive continuity UI.
   - Surfaced by: Architecture/code-quality reviews — full-account reload and invalid boolean states.
   - Verify: aggregation/controller/repository tests and initial/refresh widget regressions.
-- [ ] **T5 (P1, human: ~1.5 days / Codex: ~1.5h)** — Library — Add lazy Library loading, adaptive item detail, and paged review history.
+- [x] **T5 (P1, human: ~1.5 days / Codex: ~1.5h)** — Library — Add lazy Library loading, adaptive item detail, and paged review history.
   - Surfaced by: Architecture/performance reviews — dead rows and potentially unbounded history.
   - Verify: pagination/order tests plus narrow/wide detail widget flows.
-- [ ] **T6 (P1, human: ~1 day / Codex: ~1h)** — Review — Add explicit session state, focus mode, pause/resume, and Android essential-action toolbar.
+- [x] **T6 (P1, human: ~1 day / Codex: ~1h)** — Review — Add explicit session state, focus mode, pause/resume, and Android essential-action toolbar.
   - Surfaced by: Code-quality review — independent booleans cannot safely encode pause and refresh.
   - Verify: transition unit tests, adaptive navigation tests, and Android runtime QA.
-- [ ] **T7 (P2, human: ~0.5 day / Codex: ~30m)** — Design system — Add `DESIGN.md`, semantic radii, stable organic variants, and component usage updates.
+- [x] **T7 (P2, human: ~0.5 day / Codex: ~30m)** — Design system — Add `DESIGN.md`, semantic radii, stable organic variants, and component usage updates.
   - Surfaced by: Design-system review — rules need executable tokens and durable documentation.
   - Verify: token tests where useful and visual QA at all three widths.
-- [ ] **T8 (P1, human: ~1 day / Codex: ~1h)** — Verification — Run the full layered suite, builds, boundary/config checks, gstack review, careful, and QA.
+- [x] **T8 (P1, human: ~1 day / Codex: ~1h)** — Verification — Run the full layered suite, builds, boundary/config checks, gstack review, careful, and QA.
   - Surfaced by: Test review — every new boundary needs error-path evidence.
   - Verify: commands and journey listed in this plan.
 
