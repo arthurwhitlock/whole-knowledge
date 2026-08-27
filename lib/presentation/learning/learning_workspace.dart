@@ -111,6 +111,10 @@ class _LearningWorkspaceState extends State<LearningWorkspace>
   }
 
   void _reviewCompleted(LearningItem updatedItem) {
+    setState(() {
+      _libraryGeneration += 1;
+      _libraryVisited = false;
+    });
     _today.reconcileCompleted(updatedItem);
     _today.refresh();
   }

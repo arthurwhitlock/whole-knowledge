@@ -425,6 +425,45 @@ void main() {
     expect(find.text('Review complete.'), findsOneWidget);
   });
 
+  testWidgets('refreshes Library item and history after a completed review', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(1200, 800));
+    final dependencies = fakeDependencies(items: [learningItem()]);
+    final learningItems =
+        dependencies.learningItems as FakeLearningItemRepository;
+    await tester.pumpWidget(WholeKnowledgeApp(dependencies: dependencies));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Library').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('library-item-item-1')));
+    await tester.pumpAndSettle();
+    expect(find.text('No review attempts yet.'), findsOneWidget);
+    final initialPageCalls = learningItems.listPageCalls;
+
+    await tester.tap(find.text('Today').last);
+    await tester.pumpAndSettle();
+    await _enterProduction(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('production-response')),
+      'The refreshed response',
+    );
+    await tester.tap(find.byKey(const ValueKey('continue-to-rating')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('rating-good')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Library').last);
+    await tester.pumpAndSettle();
+    expect(learningItems.listPageCalls, initialPageCalls + 1);
+    await tester.tap(find.byKey(const ValueKey('library-item-item-1')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('The refreshed response'), findsOneWidget);
+    expect(find.text('No review attempts yet.'), findsNothing);
+  });
+
   testWidgets('preserves an active production response when resizing', (
     tester,
   ) async {

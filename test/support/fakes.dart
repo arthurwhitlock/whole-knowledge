@@ -191,6 +191,19 @@ final class FakeReviewRepository implements ReviewRepository {
       productionCount: previous.productionCount + 1,
     );
     learningItems.items[index] = updated;
+    attempts.insert(
+      0,
+      ReviewAttempt(
+        id: 'attempt-$completeCalls',
+        userId: updated.userId,
+        learningItemId: updated.id,
+        reviewSubmissionId: submissionId,
+        attemptType: ReviewAttemptType.production,
+        rating: rating,
+        responseText: responseText,
+        createdAt: reviewedAt,
+      ),
+    );
     return updated;
   }
 
