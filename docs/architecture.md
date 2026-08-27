@@ -16,8 +16,10 @@ Presentation code must not import `supabase_flutter`, use `Supabase.instance`,
 issue database queries, or interpret Supabase auth events. Widgets depend on
 application-facing contracts. The application composition root initializes
 infrastructure and injects `AuthSessionRepository`, `LearningItemRepository`,
-and `ReviewRepository` contracts into the workspace. Supabase adapters alone
-map database rows and invoke the transactional review function.
+`ReviewRepository`, `CaptureDraftRepository`, and `LexicalProvider` contracts
+into the workspace. Supabase adapters alone map database rows and invoke the
+transactional review function. Local files and external lexical HTTP are
+separate infrastructure adapters; neither leaks into widgets or domain policy.
 
 ## Supabase responsibilities
 
@@ -38,6 +40,36 @@ conflict policy. The current backend surface is intentionally limited to:
 
 No storage bucket, Edge Function, realtime channel, or broader product schema
 is part of this slice.
+
+`learning_items.part_of_speech` is nullable free text with normalized common
+aliases at capture time and a nonblank 80-character database bound. It is not a
+fixed enum, so provider vocabulary and manually entered values remain durable.
+
+## Local capture drafts and lexical lookup
+
+Capture drafts are device-local working state, not synchronized product data.
+The adapter stores versioned JSON in the platform application-support
+directory, writes through a temporary file with a flushed atomic rename, and
+serializes writes. Meaningful drafts are restored before startup routing,
+debounced after edits, flushed on lifecycle transitions, and cleared only after
+a confirmed remote create or explicit discard.
+
+English meaning lookup is user-triggered and optional. The current adapter uses
+the no-key EnglishDictionaryAPI endpoint, enforces a ten-second timeout and
+one-MiB streamed response limit, and coalesces duplicate in-flight terms. It
+persists only the chosen editable definition and normalized part of speech—not
+provider identifiers or raw responses. Other languages and every provider
+failure retain the manual meaning path.
+
+## Read models and pagination
+
+Today is loaded through a bounded application read model: up to 100 due items,
+five recent captures, five items completed in the current local day, and the
+next scheduled review. Refresh generations reject stale responses while the UI
+keeps the last successful overview visible. Library reads 50 items per page;
+item detail reads 50 existing review attempts per page. Repository adapters use
+set-based joins and targeted indexes, so neither screen performs per-row
+follow-up queries.
 
 ## Bootstrap and configuration
 
@@ -111,7 +143,7 @@ validation happens before mutation, and PostgreSQL rolls back the entire
 function on any exception. Client checks remain usability aids, never
 authorization.
 
-The hardened attempt-shape and learning-content checks are installed
+The hardened attempt-shape, learning-content, and part-of-speech checks are installed
 `NOT VALID`: they apply to every new row without rejecting nullable production
 attempts or whitespace-only content that the already-deployed base schema
 permitted. Historical rows can be audited and the constraints validated in a
@@ -123,7 +155,7 @@ schema change, not a later hardening pass.
 
 ## Database migrations
 
-The initial learning loop and its security hardening are defined by ordered
+The initial learning loop, its security hardening, and read-model support are defined by ordered
 migrations under `supabase/migrations/`. All later database changes must be new
 migrations, reviewed before `supabase db push`; avoid dashboard-only schema
 changes. Keep seed/demo data separate and never commit production data or

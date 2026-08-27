@@ -8,4 +8,5 @@ abstract final class AppSpacing {
   static const double contentMaxWidth = 560;
   static const double compactLayoutBreakpoint = 640;
   static const double navigationBreakpoint = 760;
+  static const double contentLayoutBreakpoint = 960;
 }

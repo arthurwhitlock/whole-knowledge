@@ -8,6 +8,7 @@ abstract final class SupabaseLearningItemMapper {
       userId: row['user_id'] as String,
       kind: _learningItemKind(row['kind'] as String),
       content: row['content'] as String,
+      partOfSpeech: row['part_of_speech'] as String?,
       meaning: row['meaning'] as String?,
       context: row['context'] as String?,
       source: row['source'] as String?,

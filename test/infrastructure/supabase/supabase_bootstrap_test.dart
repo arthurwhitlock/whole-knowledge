@@ -49,6 +49,8 @@ void main() {
         authSessions: auth,
         learningItems: original.learningItems,
         reviews: original.reviews,
+        captureDrafts: original.captureDrafts,
+        lexicalProvider: original.lexicalProvider,
       );
       final bootstrap = SupabaseBootstrap(
         initializer: (configuration) async => dependencies,
@@ -69,6 +71,8 @@ void main() {
         authSessions: auth,
         learningItems: original.learningItems,
         reviews: original.reviews,
+        captureDrafts: original.captureDrafts,
+        lexicalProvider: original.lexicalProvider,
       );
       final bootstrap = SupabaseBootstrap(
         initializer: (configuration) async => dependencies,

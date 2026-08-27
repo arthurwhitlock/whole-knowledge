@@ -8,4 +8,10 @@ abstract interface class ReviewRepository {
     required String responseText,
     required ReviewRating rating,
   });
+
+  Future<List<ReviewAttempt>> listAttempts({
+    required String learningItemId,
+    required int offset,
+    required int limit,
+  });
 }

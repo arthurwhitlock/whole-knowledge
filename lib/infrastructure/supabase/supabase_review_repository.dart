@@ -31,4 +31,20 @@ final class SupabaseReviewRepository implements ReviewRepository {
 
     return SupabaseLearningItemMapper.fromRow(row);
   }
+
+  @override
+  Future<List<ReviewAttempt>> listAttempts({
+    required String learningItemId,
+    required int offset,
+    required int limit,
+  }) async {
+    final rows = await _client
+        .from('review_attempts')
+        .select()
+        .eq('learning_item_id', learningItemId)
+        .order('created_at', ascending: false)
+        .order('id')
+        .range(offset, offset + limit - 1);
+    return List.unmodifiable(rows.map(SupabaseReviewAttemptMapper.fromRow));
+  }
 }

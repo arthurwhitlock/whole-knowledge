@@ -15,6 +15,7 @@ void main() {
     const capture = CaptureLearningItem(
       kind: LearningItemKind.vocabulary,
       content: '  pourtant  ',
+      partOfSpeech: ' Adj ',
       meaning: '  however ',
       context: '   ',
     );
@@ -22,8 +23,23 @@ void main() {
     final normalized = capture.normalized();
 
     expect(normalized.content, 'pourtant');
+    expect(normalized.partOfSpeech, 'adjective');
     expect(normalized.meaning, 'however');
     expect(normalized.context, isNull);
+  });
+
+  test('preserves safe unknown part-of-speech values', () {
+    const capture = CaptureLearningItem(
+      kind: LearningItemKind.vocabulary,
+      content: 'bonjour',
+      partOfSpeech: 'Interjection',
+    );
+
+    expect(capture.normalized().partOfSpeech, 'interjection');
+    expect(
+      CaptureLearningItemValidator.validatePartOfSpeech('p' * 81),
+      'Keep the part of speech under 80 characters.',
+    );
   });
 
   test('validates optional fields at database-compatible limits', () {

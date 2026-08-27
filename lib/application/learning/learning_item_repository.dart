@@ -6,5 +6,20 @@ abstract interface class LearningItemRepository {
 
   Future<List<LearningItem>> listAll();
 
-  Future<List<LearningItem>> listDue({required DateTime at});
+  Future<List<LearningItem>> listDue({required DateTime at, int limit = 100});
+
+  Future<List<LearningItem>> listRecent({required int limit});
+
+  Future<List<LearningItem>> listCompletedBetween({
+    required DateTime from,
+    required DateTime to,
+    required int limit,
+  });
+
+  Future<DateTime?> findNextScheduled({required DateTime after});
+
+  Future<List<LearningItem>> listPage({
+    required int offset,
+    required int limit,
+  });
 }

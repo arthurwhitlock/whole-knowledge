@@ -1,8 +1,9 @@
 # Whole Knowledge
 
 Whole Knowledge is a standalone personal Language OS built with Flutter. The
-first product slice supports capturing encountered language and completing a
-retrieval, production, self-rating, and rescheduling loop. Its interface uses
+founder-use slice supports resilient capture, optional English meaning lookup,
+a real Today home, adaptive Library history, and the complete retrieval,
+production, self-rating, and rescheduling loop. Its interface uses
 the existing `shadcn_ui`-based design-system foundation.
 
 ## Current direction
@@ -89,6 +90,10 @@ Capture an expression or vocabulary item
 New items are due immediately. V0 intervals are 10 minutes, 1 day, 3 days, and
 7 days respectively. Ratings are self-assessments; no automatic grading is
 performed.
+
+Capture drafts are stored locally on the device until Save succeeds or the user
+explicitly discards them. English lookup is optional and fills editable fields;
+manual meaning entry remains available for every language and failure state.
 
 ## Supabase CLI
 

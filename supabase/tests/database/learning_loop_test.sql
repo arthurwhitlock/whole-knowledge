@@ -2,10 +2,55 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(58);
+select plan(66);
 
 select has_table('public', 'learning_items', 'learning_items exists');
 select has_table('public', 'review_attempts', 'review_attempts exists');
+select has_column(
+  'public',
+  'learning_items',
+  'part_of_speech',
+  'learning items can preserve a selected part of speech'
+);
+select ok(
+  exists (
+    select 1
+    from pg_catalog.pg_constraint
+    where conrelid = 'public.learning_items'::regclass
+      and conname = 'learning_items_part_of_speech_check'
+  ),
+  'part of speech has a length and nonblank constraint'
+);
+select ok(
+  not (
+    select convalidated
+    from pg_catalog.pg_constraint
+    where conrelid = 'public.learning_items'::regclass
+      and conname = 'learning_items_part_of_speech_check'
+  ),
+  'part of speech hardening preserves legacy rows'
+);
+select ok(
+  has_column_privilege(
+    'authenticated',
+    'public.learning_items',
+    'part_of_speech',
+    'insert'
+  ),
+  'authenticated capture can set part of speech'
+);
+select ok(
+  to_regclass('public.learning_items_recent_idx') is not null,
+  'recent learning items have a bounded read index'
+);
+select ok(
+  to_regclass('public.review_attempts_item_history_idx') is not null,
+  'item history has a paginated read index'
+);
+select ok(
+  to_regclass('public.review_attempts_completed_idx') is not null,
+  'completed-today reads have a production-attempt index'
+);
 select ok(
   (
     select relrowsecurity
@@ -173,6 +218,22 @@ select throws_ok(
       '20000000-0000-4000-8000-000000000002',
       'vocabulary',
       'spoofed owner'
+    )
+  $$
+);
+select throws_ok(
+  $$
+    insert into public.learning_items (
+      user_id,
+      kind,
+      content,
+      part_of_speech
+    )
+    values (
+      '10000000-0000-4000-8000-000000000001',
+      'vocabulary',
+      'invalid part of speech',
+      E'\t\n'
     )
   $$
 );

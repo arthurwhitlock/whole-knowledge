@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:whole_knowledge/app/app_dependencies.dart';
 import 'package:whole_knowledge/app/theme/app_spacing.dart';
+import 'package:whole_knowledge/application/capture/capture_session_controller.dart';
+import 'package:whole_knowledge/application/learning/today_load_controller.dart';
+import 'package:whole_knowledge/application/learning/today_overview.dart';
 import 'package:whole_knowledge/domain/learning/learning_item.dart';
 import 'package:whole_knowledge/presentation/learning/capture_screen.dart';
 import 'package:whole_knowledge/presentation/learning/library_screen.dart';
@@ -23,108 +26,105 @@ class LearningWorkspace extends StatefulWidget {
 class _LearningWorkspaceState extends State<LearningWorkspace>
     with WidgetsBindingObserver {
   final _contentKey = GlobalKey();
+  late final CaptureSessionController _capture;
+  late final TodayLoadController _today;
   WorkspaceDestination _destination = WorkspaceDestination.today;
-  List<LearningItem> _dueItems = const [];
-  List<LearningItem> _libraryItems = const [];
-  bool _isLoading = true;
-  bool _hasLoadedData = false;
-  String? _loadError;
+  bool _startupReady = false;
+  bool _reviewFocusMode = false;
   Timer? _dueRefreshTimer;
-  int _reloadGeneration = 0;
+  int _libraryGeneration = 0;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _reload();
+    _capture = CaptureSessionController(
+      widget.dependencies.captureDrafts,
+      widget.dependencies.lexicalProvider,
+      widget.dependencies.learningItems,
+    );
+    _today = TodayLoadController(
+      LoadTodayOverview(widget.dependencies.learningItems),
+    )..addListener(_todayChanged);
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    final restoreFuture = _capture.restore();
+    _today.refresh();
+    final restored = await restoreFuture;
+    if (!mounted) return;
+    setState(() {
+      if (restored) _destination = WorkspaceDestination.capture;
+      _startupReady = true;
+    });
+    _scheduleDueRefresh();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _dueRefreshTimer?.cancel();
+    _capture.flush();
+    _capture.dispose();
+    _today.removeListener(_todayChanged);
+    _today.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _reload();
+      _today.refresh();
+    } else if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _capture.flush();
     }
   }
 
-  Future<void> _reload() async {
-    final generation = ++_reloadGeneration;
-    setState(() {
-      _isLoading = true;
-      _loadError = null;
-    });
-    try {
-      final results = await Future.wait([
-        widget.dependencies.learningItems.listDue(at: DateTime.now().toUtc()),
-        widget.dependencies.learningItems.listAll(),
-      ]);
-      if (!mounted || generation != _reloadGeneration) return;
-      setState(() {
-        _dueItems = results[0];
-        _libraryItems = results[1];
-        _isLoading = false;
-        _hasLoadedData = true;
-      });
-      _scheduleDueRefresh();
-    } on Object {
-      if (!mounted || generation != _reloadGeneration) return;
-      setState(() {
-        _loadError = 'Could not load your learning items.';
-        _isLoading = false;
-      });
-    }
+  void _todayChanged() {
+    if (!mounted) return;
+    setState(() {});
+    if (!_today.isLoading) _scheduleDueRefresh();
   }
 
   void _select(WorkspaceDestination destination) {
     setState(() => _destination = destination);
-    if (destination == WorkspaceDestination.today) {
-      _reload();
-    }
+    if (destination == WorkspaceDestination.today) _today.refresh();
   }
 
   void _captured() {
-    _select(WorkspaceDestination.today);
+    setState(() {
+      _destination = WorkspaceDestination.today;
+      _libraryGeneration += 1;
+    });
+    _today.refresh();
   }
 
   void _reviewCompleted(LearningItem updatedItem) {
-    setState(() {
-      _dueItems = _dueItems
-          .where((item) => item.id != updatedItem.id)
-          .toList(growable: false);
-      _libraryItems = _libraryItems
-          .map((item) => item.id == updatedItem.id ? updatedItem : item)
-          .toList(growable: false);
-    });
-    _scheduleDueRefresh();
-    _reload();
+    _today.reconcileCompleted(updatedItem);
+    _today.refresh();
   }
 
   void _scheduleDueRefresh() {
     _dueRefreshTimer?.cancel();
-    final now = DateTime.now().toUtc();
-    DateTime? nextDueAt;
-    for (final item in _libraryItems) {
-      if (item.status != LearningItemStatus.active || item.reviewCount == 0) {
-        continue;
-      }
-      if (item.nextReviewAt.isAfter(now) &&
-          (nextDueAt == null || item.nextReviewAt.isBefore(nextDueAt))) {
-        nextDueAt = item.nextReviewAt;
-      }
-    }
-    if (nextDueAt != null) {
-      _dueRefreshTimer = Timer(nextDueAt.difference(now), _reload);
-    }
+    final next = _today.overview?.nextReviewAt;
+    if (next == null) return;
+    final delay = next.difference(DateTime.now().toUtc());
+    if (delay.isNegative) return;
+    _dueRefreshTimer = Timer(delay, _today.refresh);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_startupReady) {
+      return const Scaffold(
+        body: SafeArea(
+          child: Center(child: CircularProgressIndicator.adaptive()),
+        ),
+      );
+    }
     final theme = ShadTheme.of(context);
     return Scaffold(
       body: SafeArea(
@@ -135,19 +135,20 @@ class _LearningWorkspaceState extends State<LearningWorkspace>
             final content = _WorkspaceContent(
               key: _contentKey,
               destination: _destination,
-              isInitialLoading: _isLoading && !_hasLoadedData,
-              isRefreshing: _isLoading,
-              hasLoadedData: _hasLoadedData,
-              loadError: _loadError,
-              dueItems: _dueItems,
-              libraryItems: _libraryItems,
               dependencies: widget.dependencies,
-              onRetry: _reload,
+              capture: _capture,
+              today: _today,
+              libraryGeneration: _libraryGeneration,
+              onRetry: _today.refresh,
               onCaptured: _captured,
               onReviewCompleted: _reviewCompleted,
               onQuickCapture: () => _select(WorkspaceDestination.capture),
+              onReviewModeChanged: (active) {
+                setState(() => _reviewFocusMode = active);
+              },
             );
 
+            if (_reviewFocusMode) return content;
             if (!wide) {
               return Column(
                 children: [
@@ -156,9 +157,8 @@ class _LearningWorkspaceState extends State<LearningWorkspace>
                     selectedIndex: _destination.index,
                     backgroundColor: theme.colorScheme.background,
                     indicatorColor: theme.colorScheme.muted,
-                    onDestinationSelected: (index) {
-                      _select(WorkspaceDestination.values[index]);
-                    },
+                    onDestinationSelected: (index) =>
+                        _select(WorkspaceDestination.values[index]),
                     destinations: const [
                       NavigationDestination(
                         icon: Icon(Icons.today_outlined),
@@ -189,9 +189,8 @@ class _LearningWorkspaceState extends State<LearningWorkspace>
                   indicatorColor: theme.colorScheme.muted,
                   labelType: NavigationRailLabelType.all,
                   minWidth: 88,
-                  onDestinationSelected: (index) {
-                    _select(WorkspaceDestination.values[index]);
-                  },
+                  onDestinationSelected: (index) =>
+                      _select(WorkspaceDestination.values[index]),
                   leading: Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.regular),
                     child: Text('WK', style: theme.textTheme.h4),
@@ -229,105 +228,51 @@ class _WorkspaceContent extends StatelessWidget {
   const _WorkspaceContent({
     super.key,
     required this.destination,
-    required this.isInitialLoading,
-    required this.isRefreshing,
-    required this.hasLoadedData,
-    required this.loadError,
-    required this.dueItems,
-    required this.libraryItems,
     required this.dependencies,
+    required this.capture,
+    required this.today,
+    required this.libraryGeneration,
     required this.onRetry,
     required this.onCaptured,
     required this.onReviewCompleted,
     required this.onQuickCapture,
+    required this.onReviewModeChanged,
   });
 
   final WorkspaceDestination destination;
-  final bool isInitialLoading;
-  final bool isRefreshing;
-  final bool hasLoadedData;
-  final String? loadError;
-  final List<LearningItem> dueItems;
-  final List<LearningItem> libraryItems;
   final AppDependencies dependencies;
+  final CaptureSessionController capture;
+  final TodayLoadController today;
+  final int libraryGeneration;
   final VoidCallback onRetry;
   final VoidCallback onCaptured;
   final ValueChanged<LearningItem> onReviewCompleted;
   final VoidCallback onQuickCapture;
+  final ValueChanged<bool> onReviewModeChanged;
 
   @override
   Widget build(BuildContext context) {
-    if (isInitialLoading) {
-      return const Center(child: CircularProgressIndicator.adaptive());
-    }
-    if (loadError != null && !hasLoadedData) {
-      return _LoadFailure(message: loadError!, onRetry: onRetry);
-    }
-
-    final content = IndexedStack(
+    return IndexedStack(
       index: destination.index,
       children: [
         TodayScreen(
-          dueItems: dueItems,
+          overview: today.overview,
+          isInitialLoading: today.isInitialLoading,
+          isRefreshing: today.isRefreshing,
+          loadError: today.error,
           reviews: dependencies.reviews,
-          queueStatusMessage: isRefreshing
-              ? 'Refreshing review queue.'
-              : loadError != null
-              ? 'Review queue unavailable. Retry loading above.'
-              : null,
           onCompleted: onReviewCompleted,
           onReload: onRetry,
           onQuickCapture: onQuickCapture,
+          onReviewModeChanged: onReviewModeChanged,
         ),
-        CaptureScreen(
+        CaptureScreen(controller: capture, onCaptured: onCaptured),
+        LibraryScreen(
+          key: ValueKey('library-$libraryGeneration'),
           learningItems: dependencies.learningItems,
-          onCaptured: onCaptured,
+          reviews: dependencies.reviews,
         ),
-        LibraryScreen(items: libraryItems),
       ],
     );
-
-    if (loadError == null) return content;
-
-    return Column(
-      children: [
-        _LoadFailure(message: loadError!, onRetry: onRetry, compact: true),
-        Expanded(child: content),
-      ],
-    );
-  }
-}
-
-class _LoadFailure extends StatelessWidget {
-  const _LoadFailure({
-    required this.message,
-    required this.onRetry,
-    this.compact = false,
-  });
-
-  final String message;
-  final VoidCallback onRetry;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = ShadTheme.of(context);
-    final failure = Semantics(
-      liveRegion: true,
-      child: Padding(
-        padding: EdgeInsets.all(
-          compact ? AppSpacing.regular : AppSpacing.pageCompact,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(message, style: theme.textTheme.p),
-            const SizedBox(height: AppSpacing.regular),
-            ShadButton.outline(onPressed: onRetry, child: const Text('Retry')),
-          ],
-        ),
-      ),
-    );
-    return compact ? failure : Center(child: failure);
   }
 }

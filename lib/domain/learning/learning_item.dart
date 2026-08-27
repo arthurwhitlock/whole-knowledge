@@ -14,6 +14,7 @@ final class LearningItem {
     required this.reviewCount,
     required this.productionCount,
     required this.status,
+    this.partOfSpeech,
     this.meaning,
     this.context,
     this.source,
@@ -23,6 +24,7 @@ final class LearningItem {
   final String userId;
   final LearningItemKind kind;
   final String content;
+  final String? partOfSpeech;
   final String? meaning;
   final String? context;
   final String? source;

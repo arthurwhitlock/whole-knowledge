@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:whole_knowledge/app/app.dart';
+import 'package:whole_knowledge/application/capture/capture_draft.dart';
 import 'package:whole_knowledge/domain/learning/review_attempt.dart';
 
 import 'support/fakes.dart';
@@ -104,6 +105,92 @@ void main() {
     expect(learningItems.lastCapture?.content, 'pourtant');
     expect(learningItems.lastCapture?.meaning, 'however');
     expect(find.text('1 item ready for review.'), findsOneWidget);
+  });
+
+  testWidgets('routes a meaningful cold-start draft to Capture', (
+    tester,
+  ) async {
+    final dependencies = fakeDependencies();
+    final drafts = dependencies.captureDrafts as FakeCaptureDraftRepository;
+    drafts.saved = const CaptureDraft(
+      content: 'restored word',
+      meaning: 'restored meaning',
+    );
+
+    await tester.pumpWidget(WholeKnowledgeApp(dependencies: dependencies));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Draft restored'), findsOneWidget);
+    expect(find.text('restored word'), findsOneWidget);
+    expect(find.text('restored meaning'), findsOneWidget);
+  });
+
+  testWidgets('choosing an English sense fills editable meaning and POS', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(390, 844));
+    final dependencies = fakeDependencies();
+    await tester.pumpWidget(WholeKnowledgeApp(dependencies: dependencies));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Capture').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('capture-content')),
+      'record',
+    );
+    await tester.pump();
+    final lookupButton = tester.widget<ShadButton>(
+      find.byKey(const ValueKey('lookup-meaning')),
+    );
+    expect(lookupButton.enabled, isTrue);
+    await tester.ensureVisible(find.byKey(const ValueKey('lookup-meaning')));
+    await tester.tap(find.byKey(const ValueKey('lookup-meaning')));
+    await tester.pumpAndSettle();
+    expect(
+      (dependencies.lexicalProvider as FakeLexicalProvider).lookupCalls,
+      1,
+    );
+    final verbSense = find.textContaining('To preserve information.');
+    expect(verbSense, findsOneWidget);
+    await tester.ensureVisible(verbSense);
+    await tester.tap(verbSense);
+    await tester.pumpAndSettle();
+
+    expect(find.text('To preserve information.'), findsOneWidget);
+    expect(find.text('verb'), findsOneWidget);
+    expect(find.text('Test dictionary attribution'), findsOneWidget);
+  });
+
+  testWidgets('opens adaptive library detail and existing review history', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(390, 844));
+    final item = learningItem(partOfSpeech: 'verb', reviewCount: 1);
+    final dependencies = fakeDependencies(items: [item]);
+    final reviews = dependencies.reviews as FakeReviewRepository;
+    reviews.attempts.add(
+      ReviewAttempt(
+        id: 'attempt-1',
+        userId: 'user-1',
+        learningItemId: item.id,
+        reviewSubmissionId: 'submission-1',
+        attemptType: ReviewAttemptType.production,
+        rating: ReviewRating.good,
+        responseText: 'Je prends mon temps.',
+        createdAt: DateTime.utc(2026, 8, 26),
+      ),
+    );
+    await tester.pumpWidget(WholeKnowledgeApp(dependencies: dependencies));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Library').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('library-item-${item.id}')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Review history'), findsOneWidget);
+    expect(find.text('Je prends mon temps.'), findsOneWidget);
+    expect(find.text('verb'), findsOneWidget);
+    expect(find.text('Library'), findsWidgets);
   });
 
   testWidgets('preserves a capture draft across the adaptive breakpoint', (
@@ -295,7 +382,7 @@ void main() {
     tester.view.physicalSize = const Size(761, 844);
     await tester.pumpAndSettle();
 
-    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.byType(NavigationRail), findsNothing);
     expect(find.text('Je garde ma réponse.'), findsOneWidget);
     expect(find.text('Continue to self-rating'), findsOneWidget);
   });

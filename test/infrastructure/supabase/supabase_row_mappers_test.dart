@@ -10,6 +10,7 @@ void main() {
       'user_id': 'user-1',
       'kind': 'expression',
       'content': 'prendre son temps',
+      'part_of_speech': 'verb',
       'meaning': 'take one’s time',
       'context': null,
       'source': 'conversation',
@@ -24,6 +25,7 @@ void main() {
     expect(item.kind, LearningItemKind.expression);
     expect(item.status, LearningItemStatus.active);
     expect(item.source, 'conversation');
+    expect(item.partOfSpeech, 'verb');
     expect(item.createdAt, DateTime.utc(2026, 8, 25, 12));
   });
 

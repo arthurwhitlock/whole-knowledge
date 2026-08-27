@@ -4,6 +4,8 @@ import 'package:whole_knowledge/infrastructure/supabase/supabase_auth_session_re
 import 'package:whole_knowledge/infrastructure/supabase/supabase_configuration.dart';
 import 'package:whole_knowledge/infrastructure/supabase/supabase_learning_item_repository.dart';
 import 'package:whole_knowledge/infrastructure/supabase/supabase_review_repository.dart';
+import 'package:whole_knowledge/infrastructure/dictionary/english_dictionary_api_provider.dart';
+import 'package:whole_knowledge/infrastructure/local/file_capture_draft_repository.dart';
 
 enum SupabaseBootstrapStatus {
   ready,
@@ -79,5 +81,7 @@ Future<AppDependencies> _initializeSupabase(
     authSessions: SupabaseAuthSessionRepository(supabase.client),
     learningItems: SupabaseLearningItemRepository(supabase.client),
     reviews: SupabaseReviewRepository(supabase.client),
+    captureDrafts: FileCaptureDraftRepository(),
+    lexicalProvider: EnglishDictionaryApiProvider(),
   );
 }

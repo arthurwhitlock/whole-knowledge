@@ -4,6 +4,7 @@ final class CaptureLearningItem {
   const CaptureLearningItem({
     required this.kind,
     required this.content,
+    this.partOfSpeech,
     this.meaning,
     this.context,
     this.source,
@@ -11,6 +12,7 @@ final class CaptureLearningItem {
 
   final LearningItemKind kind;
   final String content;
+  final String? partOfSpeech;
   final String? meaning;
   final String? context;
   final String? source;
@@ -19,6 +21,7 @@ final class CaptureLearningItem {
     return CaptureLearningItem(
       kind: kind,
       content: content.trim(),
+      partOfSpeech: normalizePartOfSpeech(partOfSpeech),
       meaning: _optionalText(meaning),
       context: _optionalText(context),
       source: _optionalText(source),
@@ -28,6 +31,20 @@ final class CaptureLearningItem {
   static String? _optionalText(String? value) {
     final normalized = value?.trim();
     return normalized == null || normalized.isEmpty ? null : normalized;
+  }
+
+  static String? normalizePartOfSpeech(String? value) {
+    final normalized = _optionalText(value)?.toLowerCase();
+    return switch (normalized) {
+      null => null,
+      'adj' || 'adjective' => 'adjective',
+      'adv' || 'adverb' => 'adverb',
+      'n' || 'noun' => 'noun',
+      'v' || 'verb' => 'verb',
+      'prep' || 'preposition' => 'preposition',
+      'pron' || 'pronoun' => 'pronoun',
+      _ => normalized,
+    };
   }
 }
 
@@ -53,6 +70,14 @@ abstract final class CaptureLearningItemValidator {
 
   static String? validateSource(String value) {
     return _validateOptional(value, 1000, 'source');
+  }
+
+  static String? validatePartOfSpeech(String? value) {
+    final normalized = value?.trim();
+    if (normalized != null && normalized.length > 80) {
+      return 'Keep the part of speech under 80 characters.';
+    }
+    return null;
   }
 
   static String? _validateOptional(String value, int maximum, String label) {

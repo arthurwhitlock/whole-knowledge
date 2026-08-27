@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:whole_knowledge/app/app_dependencies.dart';
 import 'package:whole_knowledge/application/auth/auth_session_repository.dart';
+import 'package:whole_knowledge/application/capture/capture_draft.dart';
+import 'package:whole_knowledge/application/capture/lexical_provider.dart';
 import 'package:whole_knowledge/application/learning/capture_learning_item.dart';
 import 'package:whole_knowledge/application/learning/learning_item_repository.dart';
 import 'package:whole_knowledge/application/learning/review_repository.dart';
@@ -63,6 +65,7 @@ final class FakeLearningItemRepository implements LearningItemRepository {
       meaning: lastCapture!.meaning,
       context: lastCapture!.context,
       source: lastCapture!.source,
+      partOfSpeech: lastCapture!.partOfSpeech,
       kind: lastCapture!.kind,
       nextReviewAt: now,
     );
@@ -79,11 +82,66 @@ final class FakeLearningItemRepository implements LearningItemRepository {
   }
 
   @override
-  Future<List<LearningItem>> listDue({required DateTime at}) async {
+  Future<List<LearningItem>> listDue({
+    required DateTime at,
+    int limit = 100,
+  }) async {
     listDueCalls += 1;
     await loadGate?.future;
     if (shouldFailLoads) throw StateError('load unavailable');
-    return items.where((item) => item.isDueAt(at)).toList(growable: false);
+    return items
+        .where((item) => item.isDueAt(at))
+        .take(limit)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<List<LearningItem>> listRecent({required int limit}) async {
+    await loadGate?.future;
+    if (shouldFailLoads) throw StateError('load unavailable');
+    return items.take(limit).toList(growable: false);
+  }
+
+  @override
+  Future<List<LearningItem>> listCompletedBetween({
+    required DateTime from,
+    required DateTime to,
+    required int limit,
+  }) async {
+    await loadGate?.future;
+    if (shouldFailLoads) throw StateError('load unavailable');
+    return items
+        .where(
+          (item) =>
+              item.reviewCount > 0 &&
+              !item.updatedAt.isBefore(from) &&
+              item.updatedAt.isBefore(to),
+        )
+        .take(limit)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<DateTime?> findNextScheduled({required DateTime after}) async {
+    await loadGate?.future;
+    if (shouldFailLoads) throw StateError('load unavailable');
+    final candidates =
+        items
+            .map((item) => item.nextReviewAt)
+            .where((value) => value.isAfter(after))
+            .toList()
+          ..sort();
+    return candidates.firstOrNull;
+  }
+
+  @override
+  Future<List<LearningItem>> listPage({
+    required int offset,
+    required int limit,
+  }) async {
+    await loadGate?.future;
+    if (shouldFailLoads) throw StateError('load unavailable');
+    return items.skip(offset).take(limit).toList(growable: false);
   }
 }
 
@@ -97,6 +155,7 @@ final class FakeReviewRepository implements ReviewRepository {
   Completer<void>? completionGate;
   bool shouldFail = false;
   int completeCalls = 0;
+  final List<ReviewAttempt> attempts = [];
 
   @override
   Future<LearningItem> completeReview({
@@ -122,6 +181,7 @@ final class FakeReviewRepository implements ReviewRepository {
       meaning: previous.meaning,
       context: previous.context,
       source: previous.source,
+      partOfSpeech: previous.partOfSpeech,
       kind: previous.kind,
       nextReviewAt: ReviewSchedule.nextReviewAt(rating, reviewedAt),
       reviewCount: previous.reviewCount + 1,
@@ -129,6 +189,65 @@ final class FakeReviewRepository implements ReviewRepository {
     );
     learningItems.items[index] = updated;
     return updated;
+  }
+
+  @override
+  Future<List<ReviewAttempt>> listAttempts({
+    required String learningItemId,
+    required int offset,
+    required int limit,
+  }) async {
+    return attempts
+        .where((attempt) => attempt.learningItemId == learningItemId)
+        .skip(offset)
+        .take(limit)
+        .toList(growable: false);
+  }
+}
+
+final class FakeCaptureDraftRepository implements CaptureDraftRepository {
+  CaptureDraft? saved;
+  int writes = 0;
+  int clears = 0;
+
+  @override
+  Future<CaptureDraft?> read() async => saved;
+
+  @override
+  Future<void> write(CaptureDraft draft) async {
+    writes += 1;
+    saved = draft;
+  }
+
+  @override
+  Future<void> clear() async {
+    clears += 1;
+    saved = null;
+  }
+}
+
+final class FakeLexicalProvider implements LexicalProvider {
+  LexicalLookup result = const LexicalLookup(
+    term: 'record',
+    senses: [
+      LexicalSense(partOfSpeech: 'noun', definition: 'A stored account.'),
+      LexicalSense(
+        partOfSpeech: 'verb',
+        definition: 'To preserve information.',
+      ),
+    ],
+  );
+  Object? error;
+  int lookupCalls = 0;
+
+  @override
+  String get attribution => 'Test dictionary attribution';
+
+  @override
+  Future<LexicalLookup> lookup(String term) async {
+    lookupCalls += 1;
+    if (error case final value?) throw value;
+    return result;
   }
 }
 
@@ -138,6 +257,8 @@ AppDependencies fakeDependencies({List<LearningItem> items = const []}) {
     authSessions: FakeAuthSessionRepository(),
     learningItems: learningItems,
     reviews: FakeReviewRepository(learningItems),
+    captureDrafts: FakeCaptureDraftRepository(),
+    lexicalProvider: FakeLexicalProvider(),
   );
 }
 
@@ -147,6 +268,7 @@ LearningItem learningItem({
   String? meaning = 'to take one’s time',
   String? context,
   String? source,
+  String? partOfSpeech,
   LearningItemKind kind = LearningItemKind.expression,
   DateTime? nextReviewAt,
   int reviewCount = 0,
@@ -161,6 +283,7 @@ LearningItem learningItem({
     meaning: meaning,
     context: context,
     source: source,
+    partOfSpeech: partOfSpeech,
     createdAt: createdAt,
     updatedAt: createdAt,
     nextReviewAt: nextReviewAt ?? createdAt,
