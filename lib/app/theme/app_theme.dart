@@ -5,11 +5,28 @@ import 'package:whole_knowledge/app/theme/app_radius.dart';
 import 'package:whole_knowledge/app/theme/app_typography.dart';
 
 abstract final class AppTheme {
+  static const _buttonSizes = ShadButtonSizesTheme(
+    regular: ShadButtonSizeTheme(
+      height: 48,
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    ),
+    sm: ShadButtonSizeTheme(
+      height: 48,
+      padding: EdgeInsets.symmetric(horizontal: 12),
+    ),
+    lg: ShadButtonSizeTheme(
+      height: 52,
+      padding: EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+    ),
+    icon: ShadButtonSizeTheme(height: 48, width: 48, padding: EdgeInsets.zero),
+  );
+
   static final light = ShadThemeData(
     brightness: Brightness.light,
     colorScheme: AppColors.lightScheme,
     radius: AppRadius.control,
     textTheme: AppTypography.theme,
+    buttonSizesTheme: _buttonSizes,
     disabledOpacity: 0.52,
   );
 
@@ -18,6 +35,7 @@ abstract final class AppTheme {
     colorScheme: AppColors.darkScheme,
     radius: AppRadius.control,
     textTheme: AppTypography.theme,
+    buttonSizesTheme: _buttonSizes,
     disabledOpacity: 0.52,
   );
 

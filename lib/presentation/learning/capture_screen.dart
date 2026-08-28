@@ -236,8 +236,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
                         onChanged: (value) => _edit(content: value),
                       ),
                     ),
-                    if (controller.contentError != null)
-                      _ErrorText(controller.contentError!),
+                    _AnimatedError(message: controller.contentError),
                     const _SectionBreak(),
                     const _FormSectionHeading(
                       eyebrow: 'Meaning',
@@ -367,8 +366,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
                         ],
                       ),
                     ),
-                    if (controller.saveError != null)
-                      _ErrorText(controller.saveError!),
+                    _AnimatedError(message: controller.saveError),
                     const SizedBox(height: AppSpacing.pageCompact),
                     Wrap(
                       spacing: AppSpacing.compact,
@@ -467,8 +465,29 @@ class _LookupResults extends StatelessWidget {
   }
 }
 
+class _AnimatedError extends StatelessWidget {
+  const _AnimatedError({required this.message});
+
+  final String? message;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSize(
+      duration: AppMotion.responsive(context, AppMotion.standard),
+      curve: AppMotion.standardCurve,
+      alignment: Alignment.topCenter,
+      child: AnimatedSwitcher(
+        duration: AppMotion.responsive(context, AppMotion.interaction),
+        child: message == null
+            ? const SizedBox.shrink(key: ValueKey('no-error'))
+            : _ErrorText(message!, key: ValueKey(message)),
+      ),
+    );
+  }
+}
+
 class _ErrorText extends StatelessWidget {
-  const _ErrorText(this.message);
+  const _ErrorText(this.message, {super.key});
 
   final String message;
 

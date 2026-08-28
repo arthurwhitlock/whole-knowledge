@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:whole_knowledge/app/theme/app_colors.dart';
 import 'package:whole_knowledge/app/theme/app_motion.dart';
 import 'package:whole_knowledge/app/theme/app_radius.dart';
+import 'package:whole_knowledge/app/theme/app_theme.dart';
 import 'package:whole_knowledge/app/theme/app_typography.dart';
 
 void main() {
@@ -33,6 +34,16 @@ void main() {
     expect(AppRadius.organicA.topRight.x, 14);
     expect(AppRadius.organicB.topLeft.x, 14);
     expect(AppRadius.organicB.topRight.x, 24);
+  });
+
+  test('button themes preserve accessible touch targets', () {
+    for (final theme in [AppTheme.light, AppTheme.dark]) {
+      expect(theme.buttonSizesTheme.regular?.height, 48);
+      expect(theme.buttonSizesTheme.sm?.height, 48);
+      expect(theme.buttonSizesTheme.lg?.height, greaterThanOrEqualTo(48));
+      expect(theme.buttonSizesTheme.icon?.height, 48);
+      expect(theme.buttonSizesTheme.icon?.width, 48);
+    }
   });
 
   testWidgets('reduced motion removes nonessential transition time', (

@@ -180,82 +180,86 @@ class _LibraryList extends StatelessWidget {
               child: Semantics(
                 button: true,
                 selected: isSelected,
-                child: InkWell(
-                  key: ValueKey('library-item-${item.id}'),
-                  borderRadius: isSelected
-                      ? AppRadius.organicB
-                      : AppRadius.control,
-                  onTap: () => onSelect(item),
-                  child: AnimatedContainer(
-                    duration: AppMotion.responsive(
-                      context,
-                      AppMotion.interaction,
-                    ),
-                    curve: AppMotion.interactionCurve,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? theme.colorScheme.accentSubtle
-                          : Colors.transparent,
+                child: AnimatedContainer(
+                  duration: AppMotion.responsive(
+                    context,
+                    AppMotion.interaction,
+                  ),
+                  curve: AppMotion.interactionCurve,
+                  width: double.infinity,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? theme.colorScheme.accentSubtle
+                        : Colors.transparent,
+                    borderRadius: isSelected
+                        ? AppRadius.organicB
+                        : AppRadius.control,
+                  ),
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: InkWell(
+                      key: ValueKey('library-item-${item.id}'),
                       borderRadius: isSelected
                           ? AppRadius.organicB
                           : AppRadius.control,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        AnimatedContainer(
-                          duration: AppMotion.responsive(
-                            context,
-                            AppMotion.interaction,
+                      onTap: () => onSelect(item),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          AnimatedContainer(
+                            duration: AppMotion.responsive(
+                              context,
+                              AppMotion.interaction,
+                            ),
+                            width: 2,
+                            height: 48,
+                            color: isSelected
+                                ? theme.colorScheme.brandAccent
+                                : Colors.transparent,
                           ),
-                          width: 2,
-                          height: 48,
-                          color: isSelected
-                              ? theme.colorScheme.brandAccent
-                              : Colors.transparent,
-                        ),
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(AppSpacing.regular),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: isSelected
-                                      ? Colors.transparent
-                                      : theme.colorScheme.border,
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(AppSpacing.regular),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: isSelected
+                                        ? Colors.transparent
+                                        : theme.colorScheme.border,
+                                  ),
                                 ),
                               ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(item.content, style: theme.textTheme.h4),
-                                if (item.meaning != null) ...[
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(item.content, style: theme.textTheme.h4),
+                                  if (item.meaning != null) ...[
+                                    const SizedBox(height: AppSpacing.compact),
+                                    Text(
+                                      item.meaning!,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.muted,
+                                    ),
+                                  ],
                                   const SizedBox(height: AppSpacing.compact),
                                   Text(
-                                    item.meaning!,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.muted,
+                                    [
+                                      item.kind == LearningItemKind.expression
+                                          ? 'Expression'
+                                          : 'Vocabulary',
+                                      if (item.partOfSpeech != null)
+                                        item.partOfSpeech!,
+                                    ].join(' · '),
+                                    style: theme.textTheme.label,
                                   ),
                                 ],
-                                const SizedBox(height: AppSpacing.compact),
-                                Text(
-                                  [
-                                    item.kind == LearningItemKind.expression
-                                        ? 'Expression'
-                                        : 'Vocabulary',
-                                    if (item.partOfSpeech != null)
-                                      item.partOfSpeech!,
-                                  ].join(' · '),
-                                  style: theme.textTheme.label,
-                                ),
-                              ],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

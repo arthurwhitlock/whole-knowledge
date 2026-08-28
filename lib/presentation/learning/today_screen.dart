@@ -160,7 +160,13 @@ class TodayScreenState extends State<TodayScreen> {
               child: _buildReview(context),
             )
           : KeyedSubtree(
-              key: const ValueKey('today-overview'),
+              key: ValueKey(
+                widget.isInitialLoading
+                    ? 'today-loading'
+                    : widget.overview == null
+                    ? 'today-failure'
+                    : 'today-overview',
+              ),
               child: _buildToday(context),
             ),
     );
@@ -442,9 +448,25 @@ class TodayScreenState extends State<TodayScreen> {
                           transitionBuilder: _stageTransition,
                           child: KeyedSubtree(
                             key: ValueKey(_review.stage),
-                            child: _reviewStageBody(context, item),
+                            child: _reviewStageNarrative(context, item),
                           ),
                         ),
+                        if (_review.stage == ReviewStage.production ||
+                            _review.stage == ReviewStage.rating) ...[
+                          const SizedBox(height: AppSpacing.regular),
+                          ShadTextarea(
+                            key: const ValueKey('production-response'),
+                            controller: _production,
+                            focusNode: _productionFocus,
+                            readOnly: _review.stage == ReviewStage.rating,
+                            enabled: !_review.isSaving,
+                            contextMenuBuilder: compactEditingContextMenu,
+                            placeholder: const Text('Write your response'),
+                            minHeight: 128,
+                            maxHeight: 260,
+                            onChanged: _review.updateResponse,
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -491,7 +513,7 @@ class TodayScreenState extends State<TodayScreen> {
     );
   }
 
-  Widget _reviewStageBody(BuildContext context, LearningItem item) {
+  Widget _reviewStageNarrative(BuildContext context, LearningItem item) {
     final theme = ShadTheme.of(context);
     return switch (_review.stage) {
       ReviewStage.recall => Text(
@@ -515,27 +537,9 @@ class TodayScreenState extends State<TodayScreen> {
           ],
         ],
       ),
-      ReviewStage.production || ReviewStage.rating => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Use it in a sentence or write what you would say.',
-            style: theme.textTheme.p,
-          ),
-          const SizedBox(height: AppSpacing.regular),
-          ShadTextarea(
-            key: const ValueKey('production-response'),
-            controller: _production,
-            focusNode: _productionFocus,
-            readOnly: _review.stage == ReviewStage.rating,
-            enabled: !_review.isSaving,
-            contextMenuBuilder: compactEditingContextMenu,
-            placeholder: const Text('Write your response'),
-            minHeight: 128,
-            maxHeight: 260,
-            onChanged: _review.updateResponse,
-          ),
-        ],
+      ReviewStage.production || ReviewStage.rating => Text(
+        'Use it in a sentence or write what you would say.',
+        style: theme.textTheme.p,
       ),
     };
   }

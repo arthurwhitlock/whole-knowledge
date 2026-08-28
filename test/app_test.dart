@@ -71,6 +71,28 @@ void main() {
     expect(learningItems.listPageCalls, 1);
   });
 
+  testWidgets('library rows keep focus feedback above selected fill', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(1200, 800));
+    final item = learningItem();
+    await tester.pumpWidget(
+      WholeKnowledgeApp(dependencies: fakeDependencies(items: [item])),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Library').last);
+    await tester.pumpAndSettle();
+
+    final row = find.byKey(ValueKey('library-item-${item.id}'));
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+
+    final material = tester
+        .element(row)
+        .findAncestorWidgetOfExactType<Material>();
+    expect(material?.type, MaterialType.transparency);
+  });
+
   testWidgets('recovers from an initial learning-item load failure', (
     tester,
   ) async {
@@ -89,6 +111,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Nothing is due right now.'), findsOneWidget);
     expect(find.text('Could not load your learning items.'), findsNothing);
+  });
+
+  testWidgets('transitions from Today loading state to loaded content', (
+    tester,
+  ) async {
+    final dependencies = fakeDependencies();
+    final learningItems =
+        dependencies.learningItems as FakeLearningItemRepository;
+    learningItems.loadGate = Completer<void>();
+
+    await tester.pumpWidget(WholeKnowledgeApp(dependencies: dependencies));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('today-loading')), findsOneWidget);
+
+    learningItems.loadGate!.complete();
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const ValueKey('today-overview')), findsOneWidget);
+    expect(find.byKey(const ValueKey('today-loading')), findsOneWidget);
+
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('today-loading')), findsNothing);
   });
 
   testWidgets('validates and saves a capture', (tester) async {
@@ -432,8 +476,19 @@ void main() {
       find.byKey(const ValueKey('production-response')),
       'Je prends mon temps.',
     );
+    final productionEditor = tester.element(
+      find.byKey(const ValueKey('production-response')),
+    );
     await tester.tap(find.byKey(const ValueKey('continue-to-rating')));
     await tester.pump();
+    expect(find.byKey(const ValueKey('production-response')), findsOneWidget);
+    expect(
+      identical(
+        productionEditor,
+        tester.element(find.byKey(const ValueKey('production-response'))),
+      ),
+      isTrue,
+    );
     await tester.tap(find.byKey(const ValueKey('rating-good')));
     await tester.pumpAndSettle();
 
