@@ -23,7 +23,9 @@ class CaptureScreen extends StatefulWidget {
 }
 
 class _CaptureScreenState extends State<CaptureScreen> {
+  final _contentField = GlobalKey();
   final _content = TextEditingController();
+  final _contentFocus = FocusNode();
   final _partOfSpeech = TextEditingController();
   final _meaning = TextEditingController();
   final _context = TextEditingController();
@@ -51,6 +53,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
   void dispose() {
     widget.controller.removeListener(_controllerChanged);
     _content.dispose();
+    _contentFocus.dispose();
     _partOfSpeech.dispose();
     _meaning.dispose();
     _context.dispose();
@@ -107,7 +110,25 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
   Future<void> _save() async {
     final saved = await widget.controller.save();
-    if (saved != null) widget.onCaptured();
+    if (!mounted) return;
+    if (saved != null) {
+      widget.onCaptured();
+      return;
+    }
+    if (widget.controller.contentError != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _contentFocus.requestFocus();
+        final target = _contentField.currentContext;
+        if (target == null) return;
+        Scrollable.ensureVisible(
+          target,
+          alignment: 0.12,
+          duration: AppMotion.responsive(context, AppMotion.standard),
+          curve: AppMotion.standardCurve,
+        );
+      });
+    }
   }
 
   Future<void> _discard() async {
@@ -223,10 +244,12 @@ class _CaptureScreenState extends State<CaptureScreen> {
                     const _FieldLabel(label: 'Language', required: true),
                     const SizedBox(height: AppSpacing.compact),
                     Semantics(
+                      key: _contentField,
                       label: 'Language, required',
                       child: ShadTextarea(
                         key: const ValueKey('capture-content'),
                         controller: _content,
+                        focusNode: _contentFocus,
                         enabled: !controller.isSaving,
                         contextMenuBuilder: compactEditingContextMenu,
                         placeholder: const Text('What did you encounter?'),
