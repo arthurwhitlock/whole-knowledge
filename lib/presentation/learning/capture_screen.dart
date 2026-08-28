@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:whole_knowledge/app/theme/app_motion.dart';
+import 'package:whole_knowledge/app/theme/app_radius.dart';
 import 'package:whole_knowledge/app/theme/app_spacing.dart';
+import 'package:whole_knowledge/app/theme/app_typography.dart';
 import 'package:whole_knowledge/application/capture/capture_session_controller.dart';
 import 'package:whole_knowledge/domain/learning/learning_item.dart';
 import 'package:whole_knowledge/presentation/components/compact_editing_context_menu.dart';
@@ -144,7 +147,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
           child: Align(
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 680),
+              constraints: const BoxConstraints(
+                maxWidth: AppSpacing.formMaxWidth,
+              ),
               child: FocusTraversalGroup(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -155,18 +160,38 @@ class _CaptureScreenState extends State<CaptureScreen> {
                       'Save language as you encounter it. It will be ready to review immediately.',
                       style: theme.textTheme.muted,
                     ),
-                    if (controller.restored) ...[
-                      const SizedBox(height: AppSpacing.regular),
-                      Semantics(
-                        liveRegion: true,
-                        child: Text(
-                          'Draft restored',
-                          style: theme.textTheme.small,
-                        ),
+                    AnimatedSwitcher(
+                      duration: AppMotion.responsive(
+                        context,
+                        AppMotion.interaction,
                       ),
-                    ],
+                      child: controller.restored
+                          ? Padding(
+                              key: const ValueKey('draft-restored'),
+                              padding: const EdgeInsets.only(
+                                top: AppSpacing.regular,
+                              ),
+                              child: Semantics(
+                                liveRegion: true,
+                                child: Text(
+                                  'Draft restored',
+                                  style: theme.textTheme.label.copyWith(
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(
+                              key: ValueKey('no-restored-draft'),
+                            ),
+                    ),
                     const SizedBox(height: AppSpacing.page),
-                    Text('Type', style: theme.textTheme.small),
+                    const _FormSectionHeading(
+                      eyebrow: 'Encounter',
+                      title: 'What did you find?',
+                    ),
+                    const SizedBox(height: AppSpacing.pageCompact),
+                    Text('Type', style: theme.textTheme.label),
                     const SizedBox(height: AppSpacing.compact),
                     Wrap(
                       spacing: AppSpacing.compact,
@@ -213,7 +238,12 @@ class _CaptureScreenState extends State<CaptureScreen> {
                     ),
                     if (controller.contentError != null)
                       _ErrorText(controller.contentError!),
-                    const SizedBox(height: AppSpacing.regular),
+                    const _SectionBreak(),
+                    const _FormSectionHeading(
+                      eyebrow: 'Meaning',
+                      title: 'Make it understandable',
+                    ),
+                    const SizedBox(height: AppSpacing.pageCompact),
                     Row(
                       children: [
                         const Expanded(child: _FieldLabel(label: 'Meaning')),
@@ -240,9 +270,33 @@ class _CaptureScreenState extends State<CaptureScreen> {
                         ),
                       ],
                     ),
-                    if (controller.lookup != null ||
-                        controller.lookupError != null)
-                      _LookupResults(controller: controller),
+                    AnimatedSize(
+                      duration: AppMotion.responsive(
+                        context,
+                        AppMotion.structural,
+                      ),
+                      curve: AppMotion.structuralCurve,
+                      alignment: Alignment.topCenter,
+                      child: AnimatedSwitcher(
+                        duration: AppMotion.responsive(
+                          context,
+                          AppMotion.interaction,
+                        ),
+                        child:
+                            controller.lookup != null ||
+                                controller.lookupError != null
+                            ? _LookupResults(
+                                key: ValueKey(
+                                  '${controller.lookupError}-'
+                                  '${controller.lookup?.senses.length}',
+                                ),
+                                controller: controller,
+                              )
+                            : const SizedBox.shrink(
+                                key: ValueKey('no-lookup-results'),
+                              ),
+                      ),
+                    ),
                     const SizedBox(height: AppSpacing.compact),
                     Semantics(
                       label: 'Meaning, optional',
@@ -259,42 +313,59 @@ class _CaptureScreenState extends State<CaptureScreen> {
                         onChanged: (value) => _edit(meaning: value),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.regular),
-                    const _FieldLabel(label: 'Part of speech'),
-                    const SizedBox(height: AppSpacing.compact),
-                    ShadInput(
-                      key: const ValueKey('capture-part-of-speech'),
-                      controller: _partOfSpeech,
-                      enabled: !controller.isSaving,
-                      contextMenuBuilder: compactEditingContextMenu,
-                      placeholder: const Text('Optional, e.g. noun or verb'),
-                      onChanged: (value) => _edit(partOfSpeech: value),
+                    const _SectionBreak(),
+                    const _FormSectionHeading(
+                      eyebrow: 'Supporting detail',
+                      title: 'Preserve the encounter',
                     ),
-                    const SizedBox(height: AppSpacing.regular),
-                    const _FieldLabel(label: 'Context'),
-                    const SizedBox(height: AppSpacing.compact),
-                    ShadTextarea(
-                      key: const ValueKey('capture-context'),
-                      controller: _context,
-                      enabled: !controller.isSaving,
-                      contextMenuBuilder: compactEditingContextMenu,
-                      placeholder: const Text('Optional sentence or situation'),
-                      minHeight: 80,
-                      maxHeight: 160,
-                      onChanged: (value) => _edit(context: value),
-                    ),
-                    const SizedBox(height: AppSpacing.regular),
-                    const _FieldLabel(label: 'Source'),
-                    const SizedBox(height: AppSpacing.compact),
-                    ShadInput(
-                      key: const ValueKey('capture-source'),
-                      controller: _source,
-                      enabled: !controller.isSaving,
-                      contextMenuBuilder: compactEditingContextMenu,
-                      placeholder: const Text(
-                        'Optional book, conversation, or link',
+                    const SizedBox(height: AppSpacing.pageCompact),
+                    KeyedSubtree(
+                      key: const ValueKey('capture-supporting-details'),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const _FieldLabel(label: 'Part of speech'),
+                          const SizedBox(height: AppSpacing.compact),
+                          ShadInput(
+                            key: const ValueKey('capture-part-of-speech'),
+                            controller: _partOfSpeech,
+                            enabled: !controller.isSaving,
+                            contextMenuBuilder: compactEditingContextMenu,
+                            placeholder: const Text(
+                              'Optional, e.g. noun or verb',
+                            ),
+                            onChanged: (value) => _edit(partOfSpeech: value),
+                          ),
+                          const SizedBox(height: AppSpacing.regular),
+                          const _FieldLabel(label: 'Context'),
+                          const SizedBox(height: AppSpacing.compact),
+                          ShadTextarea(
+                            key: const ValueKey('capture-context'),
+                            controller: _context,
+                            enabled: !controller.isSaving,
+                            contextMenuBuilder: compactEditingContextMenu,
+                            placeholder: const Text(
+                              'Optional sentence or situation',
+                            ),
+                            minHeight: 80,
+                            maxHeight: 160,
+                            onChanged: (value) => _edit(context: value),
+                          ),
+                          const SizedBox(height: AppSpacing.regular),
+                          const _FieldLabel(label: 'Source'),
+                          const SizedBox(height: AppSpacing.compact),
+                          ShadInput(
+                            key: const ValueKey('capture-source'),
+                            controller: _source,
+                            enabled: !controller.isSaving,
+                            contextMenuBuilder: compactEditingContextMenu,
+                            placeholder: const Text(
+                              'Optional book, conversation, or link',
+                            ),
+                            onChanged: (value) => _edit(source: value),
+                          ),
+                        ],
                       ),
-                      onChanged: (value) => _edit(source: value),
                     ),
                     if (controller.saveError != null)
                       _ErrorText(controller.saveError!),
@@ -305,6 +376,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
                       children: [
                         ShadButton(
                           key: const ValueKey('save-capture'),
+                          width: compact ? double.infinity : null,
                           enabled: !controller.isSaving,
                           onPressed: _save,
                           leading: controller.isSaving
@@ -340,7 +412,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
 }
 
 class _LookupResults extends StatelessWidget {
-  const _LookupResults({required this.controller});
+  const _LookupResults({required this.controller, super.key});
 
   final CaptureSessionController controller;
 
@@ -367,7 +439,7 @@ class _LookupResults extends StatelessWidget {
                       button: true,
                       child: InkWell(
                         onTap: () => controller.selectSense(sense),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: AppRadius.control,
                         child: Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(
@@ -376,7 +448,7 @@ class _LookupResults extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             border: Border.all(color: theme.colorScheme.border),
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: AppRadius.control,
                           ),
                           child: Text(
                             '${sense.partOfSpeech} · ${sense.definition}',
@@ -427,6 +499,45 @@ class _FieldLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
-    return Text(required ? '$label *' : label, style: theme.textTheme.small);
+    return Text(required ? '$label *' : label, style: theme.textTheme.label);
+  }
+}
+
+class _FormSectionHeading extends StatelessWidget {
+  const _FormSectionHeading({required this.eyebrow, required this.title});
+
+  final String eyebrow;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = ShadTheme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          eyebrow.toUpperCase(),
+          style: theme.textTheme.meta.copyWith(
+            color: theme.colorScheme.mutedForeground,
+            letterSpacing: 1.1,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.compact),
+        Text(title, style: theme.textTheme.h3),
+      ],
+    );
+  }
+}
+
+class _SectionBreak extends StatelessWidget {
+  const _SectionBreak();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = ShadTheme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.page),
+      child: Divider(height: 1, color: theme.colorScheme.border),
+    );
   }
 }

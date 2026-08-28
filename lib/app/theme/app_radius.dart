@@ -15,10 +15,4 @@ abstract final class AppRadius {
     bottomRight: Radius.circular(14),
     bottomLeft: Radius.circular(24),
   );
-
-  @Deprecated('Use organicB for compact expressive surfaces.')
-  static const organicSmall = organicB;
-
-  @Deprecated('Use organicA for prominent expressive surfaces.')
-  static const organicLarge = organicA;
 }

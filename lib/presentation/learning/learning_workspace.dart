@@ -177,7 +177,7 @@ class _LearningWorkspaceState extends State<LearningWorkspace>
                     NavigationBar(
                       selectedIndex: _destination.index,
                       backgroundColor: theme.colorScheme.background,
-                      indicatorColor: theme.colorScheme.muted,
+                      indicatorColor: theme.colorScheme.accent,
                       onDestinationSelected: (index) =>
                           _select(WorkspaceDestination.values[index]),
                       destinations: const [
@@ -207,16 +207,29 @@ class _LearningWorkspaceState extends State<LearningWorkspace>
                   NavigationRail(
                     selectedIndex: _destination.index,
                     backgroundColor: theme.colorScheme.background,
-                    indicatorColor: theme.colorScheme.muted,
+                    indicatorColor: theme.colorScheme.accent,
                     labelType: NavigationRailLabelType.all,
-                    minWidth: 88,
+                    minWidth: 96,
                     onDestinationSelected: (index) =>
                         _select(WorkspaceDestination.values[index]),
                     leading: Padding(
                       padding: const EdgeInsets.only(
                         bottom: AppSpacing.regular,
                       ),
-                      child: Text('WK', style: theme.textTheme.h4),
+                      child: Semantics(
+                        header: true,
+                        label: 'Whole Knowledge',
+                        child: ExcludeSemantics(
+                          child: Text(
+                            'WHOLE\nKNOWLEDGE',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.muted.copyWith(
+                              letterSpacing: 0.8,
+                              height: 1.25,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                     destinations: const [
                       NavigationRailDestination(

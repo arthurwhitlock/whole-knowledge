@@ -42,6 +42,8 @@ void main() {
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.byType(NavigationRail), findsNothing);
     expect(find.text('Today'), findsWidgets);
+    expect(find.byKey(const ValueKey('today-review-surface')), findsOneWidget);
+    expect(find.byKey(const ValueKey('today-context-rail')), findsOneWidget);
   });
 
   testWidgets('uses a navigation rail on a wide layout', (tester) async {
@@ -99,6 +101,12 @@ void main() {
 
     await tester.tap(find.text('Capture').last);
     await tester.pumpAndSettle();
+    expect(find.text('What did you find?'), findsOneWidget);
+    expect(find.text('Make it understandable'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('capture-supporting-details')),
+      findsOneWidget,
+    );
     await tester.ensureVisible(find.byKey(const ValueKey('save-capture')));
     await tester.tap(find.byKey(const ValueKey('save-capture')));
     await tester.pump();
@@ -205,6 +213,10 @@ void main() {
     expect(find.text('Je prends mon temps.'), findsOneWidget);
     expect(find.text('verb'), findsOneWidget);
     expect(find.text('Library'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey('library-learning-summary')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('ignores stale history after a fast wide-layout selection', (
@@ -305,7 +317,11 @@ void main() {
           .enabled,
       isFalse,
     );
-    await tester.tap(find.byKey(const ValueKey('save-capture')));
+    // The button is intentionally disabled while the create call is in flight.
+    await tester.tap(
+      find.byKey(const ValueKey('save-capture')),
+      warnIfMissed: false,
+    );
     await tester.pump();
     expect(learningItems.createCalls, 1);
 
@@ -404,6 +420,7 @@ void main() {
       find.text('Recall the meaning before revealing your notes.'),
       findsOneWidget,
     );
+    expect(find.byKey(const ValueKey('review-stage-progress')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('reveal-answer')));
     await tester.pump();
@@ -684,6 +701,27 @@ void main() {
     await tester.pump();
     expect(find.text('Enter the language you encountered.'), findsOneWidget);
     semantics.dispose();
+  });
+
+  testWidgets('core screens reflow at an enlarged text scale', (tester) async {
+    await _setViewport(tester, const Size(390, 844));
+    tester.platformDispatcher.textScaleFactorTestValue = 1.5;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await tester.pumpWidget(
+      WholeKnowledgeApp(
+        dependencies: fakeDependencies(items: [learningItem()]),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('today-review-surface')), findsOneWidget);
+
+    await tester.tap(find.text('Capture').last);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('capture-content')), findsOneWidget);
+
+    await tester.tap(find.text('Library').last);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('library-item-item-1')), findsOneWidget);
   });
 }
 

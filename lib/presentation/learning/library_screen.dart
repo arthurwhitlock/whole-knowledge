@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:whole_knowledge/app/theme/app_colors.dart';
+import 'package:whole_knowledge/app/theme/app_motion.dart';
 import 'package:whole_knowledge/app/theme/app_radius.dart';
 import 'package:whole_knowledge/app/theme/app_spacing.dart';
+import 'package:whole_knowledge/app/theme/app_typography.dart';
 import 'package:whole_knowledge/application/learning/learning_item_repository.dart';
 import 'package:whole_knowledge/application/learning/review_repository.dart';
 import 'package:whole_knowledge/domain/learning/learning_item.dart';
@@ -85,19 +88,44 @@ class _LibraryScreenState extends State<LibraryScreen> {
         if (!wide) return list;
         return Row(
           children: [
-            SizedBox(width: 420, child: list),
+            SizedBox(width: AppSpacing.libraryListWidth, child: list),
             VerticalDivider(
               width: 1,
               color: ShadTheme.of(context).colorScheme.border,
             ),
             Expanded(
-              child: _selected == null
-                  ? const Center(
-                      child: Text(
-                        'Select an item to inspect its learning history.',
+              child: AnimatedSwitcher(
+                duration: AppMotion.responsive(context, AppMotion.standard),
+                switchInCurve: AppMotion.standardCurve,
+                switchOutCurve: AppMotion.instantCurve,
+                transitionBuilder: (child, animation) {
+                  final slide = Tween<Offset>(
+                    begin: const Offset(0.015, 0),
+                    end: Offset.zero,
+                  ).animate(animation);
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(position: slide, child: child),
+                  );
+                },
+                child: _selected == null
+                    ? Center(
+                        key: const ValueKey('library-empty-detail'),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 320),
+                          child: Text(
+                            'Select an item to inspect its learning history.',
+                            textAlign: TextAlign.center,
+                            style: ShadTheme.of(context).textTheme.lead,
+                          ),
+                        ),
+                      )
+                    : _LibraryDetail(
+                        key: ValueKey('library-detail-${_selected!.id}'),
+                        item: _selected!,
+                        reviews: widget.reviews,
                       ),
-                    )
-                  : _LibraryDetail(item: _selected!, reviews: widget.reviews),
+              ),
             ),
           ],
         );
@@ -145,56 +173,95 @@ class _LibraryList extends StatelessWidget {
         else if (items.isEmpty)
           Text('Captured language will appear here.', style: theme.textTheme.p)
         else
-          ...items.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.compact),
+          ...items.map((item) {
+            final isSelected = selected?.id == item.id;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.tight),
               child: Semantics(
                 button: true,
-                selected: selected?.id == item.id,
+                selected: isSelected,
                 child: InkWell(
                   key: ValueKey('library-item-${item.id}'),
-                  borderRadius: AppRadius.organicSmall,
+                  borderRadius: isSelected
+                      ? AppRadius.organicB
+                      : AppRadius.control,
                   onTap: () => onSelect(item),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(AppSpacing.regular),
-                    decoration: BoxDecoration(
-                      color: selected?.id == item.id
-                          ? theme.colorScheme.muted
-                          : null,
-                      border: Border.all(color: theme.colorScheme.border),
-                      borderRadius: AppRadius.organicSmall,
+                  child: AnimatedContainer(
+                    duration: AppMotion.responsive(
+                      context,
+                      AppMotion.interaction,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    curve: AppMotion.interactionCurve,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? theme.colorScheme.accentSubtle
+                          : Colors.transparent,
+                      borderRadius: isSelected
+                          ? AppRadius.organicB
+                          : AppRadius.control,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(item.content, style: theme.textTheme.h4),
-                        if (item.meaning != null) ...[
-                          const SizedBox(height: AppSpacing.compact),
-                          Text(
-                            item.meaning!,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.muted,
+                        AnimatedContainer(
+                          duration: AppMotion.responsive(
+                            context,
+                            AppMotion.interaction,
                           ),
-                        ],
-                        const SizedBox(height: AppSpacing.compact),
-                        Text(
-                          [
-                            item.kind == LearningItemKind.expression
-                                ? 'Expression'
-                                : 'Vocabulary',
-                            if (item.partOfSpeech != null) item.partOfSpeech!,
-                          ].join(' · '),
-                          style: theme.textTheme.small,
+                          width: 2,
+                          height: 48,
+                          color: isSelected
+                              ? theme.colorScheme.brandAccent
+                              : Colors.transparent,
+                        ),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(AppSpacing.regular),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: isSelected
+                                      ? Colors.transparent
+                                      : theme.colorScheme.border,
+                                ),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(item.content, style: theme.textTheme.h4),
+                                if (item.meaning != null) ...[
+                                  const SizedBox(height: AppSpacing.compact),
+                                  Text(
+                                    item.meaning!,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.muted,
+                                  ),
+                                ],
+                                const SizedBox(height: AppSpacing.compact),
+                                Text(
+                                  [
+                                    item.kind == LearningItemKind.expression
+                                        ? 'Expression'
+                                        : 'Vocabulary',
+                                    if (item.partOfSpeech != null)
+                                      item.partOfSpeech!,
+                                  ].join(' · '),
+                                  style: theme.textTheme.label,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          }),
         if (error != null && items.isNotEmpty)
           _LoadAction(message: error!, onPressed: onLoadMore),
         if (hasMore && error == null) ...[
@@ -215,6 +282,7 @@ class _LibraryDetail extends StatefulWidget {
     required this.item,
     required this.reviews,
     this.onBack,
+    super.key,
   });
 
   final LearningItem item;
@@ -287,92 +355,159 @@ class _LibraryDetailState extends State<_LibraryDetail> {
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
     final item = widget.item;
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.pageCompact),
-      children: [
-        if (widget.onBack != null)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: ShadButton.ghost(
-              onPressed: widget.onBack,
-              leading: const Icon(Icons.arrow_back, size: 18),
-              child: const Text('Library'),
-            ),
-          ),
-        Text(item.content, style: theme.textTheme.h1),
-        if (item.partOfSpeech != null) ...[
-          const SizedBox(height: AppSpacing.compact),
-          Text(item.partOfSpeech!, style: theme.textTheme.muted),
-        ],
-        const SizedBox(height: AppSpacing.page),
-        _DetailField(label: 'Meaning', value: item.meaning),
-        _DetailField(label: 'Context', value: item.context),
-        _DetailField(label: 'Source', value: item.source),
-        _DetailField(label: 'Review count', value: '${item.reviewCount}'),
-        _DetailField(
-          label: 'Production count',
-          value: '${item.productionCount}',
-        ),
-        _DetailField(
-          label: 'Next review',
-          value: _formatDate(item.nextReviewAt.toLocal()),
-        ),
-        const SizedBox(height: AppSpacing.page),
-        Text('Review history', style: theme.textTheme.h3),
-        const SizedBox(height: AppSpacing.regular),
-        if (_attempts.isEmpty && _loading)
-          const Center(child: CircularProgressIndicator.adaptive())
-        else if (_attempts.isEmpty && _error == null)
-          Text('No review attempts yet.', style: theme.textTheme.muted)
-        else
-          ..._attempts.map(
-            (attempt) => Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.compact),
-              child: Container(
-                padding: const EdgeInsets.all(AppSpacing.regular),
-                decoration: BoxDecoration(
-                  border: Border.all(color: theme.colorScheme.border),
-                  borderRadius: AppRadius.organicSmall,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      attempt.attemptType == ReviewAttemptType.production
-                          ? 'Production'
-                          : 'Retrieval',
-                      style: theme.textTheme.small,
-                    ),
-                    if (attempt.rating != null)
-                      Text(attempt.rating!.name, style: theme.textTheme.p),
-                    if (attempt.responseText != null) ...[
-                      const SizedBox(height: AppSpacing.compact),
-                      Text(attempt.responseText!),
-                    ],
-                    const SizedBox(height: AppSpacing.compact),
-                    Text(
-                      _formatDate(attempt.createdAt.toLocal()),
-                      style: theme.textTheme.muted,
-                    ),
-                  ],
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 840),
+        child: ListView(
+          padding: const EdgeInsets.all(AppSpacing.pageCompact),
+          children: [
+            if (widget.onBack != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: ShadButton.ghost(
+                  onPressed: widget.onBack,
+                  leading: const Icon(Icons.arrow_back, size: 18),
+                  child: const Text('Library'),
                 ),
               ),
-            ),
-          ),
-        if (_error != null) _LoadAction(message: _error!, onPressed: _loadMore),
-        if (_hasMore && _error == null && _attempts.isNotEmpty)
-          ShadButton.outline(
-            enabled: !_loading,
-            onPressed: _loadMore,
-            child: Text(_loading ? 'Loading' : 'Load more history'),
-          ),
-      ],
+            Text(item.content, style: theme.textTheme.h1),
+            if (item.partOfSpeech != null) ...[
+              const SizedBox(height: AppSpacing.compact),
+              Text(item.partOfSpeech!, style: theme.textTheme.muted),
+            ],
+            const SizedBox(height: AppSpacing.page),
+            _LearningSummary(item: item),
+            const SizedBox(height: AppSpacing.page),
+            _DetailField(label: 'Meaning', value: item.meaning),
+            _DetailField(label: 'Context', value: item.context),
+            _DetailField(label: 'Source', value: item.source),
+            const SizedBox(height: AppSpacing.page),
+            Text('Review history', style: theme.textTheme.h3),
+            const SizedBox(height: AppSpacing.regular),
+            if (_attempts.isEmpty && _loading)
+              const Center(child: CircularProgressIndicator.adaptive())
+            else if (_attempts.isEmpty && _error == null)
+              Text('No review attempts yet.', style: theme.textTheme.muted)
+            else
+              ..._attempts.asMap().entries.map(
+                (entry) => Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.compact),
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSpacing.regular),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.card,
+                      border: Border.all(color: theme.colorScheme.border),
+                      borderRadius: entry.key.isEven
+                          ? AppRadius.organicA
+                          : AppRadius.organicB,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          entry.value.attemptType ==
+                                  ReviewAttemptType.production
+                              ? 'Production'
+                              : 'Retrieval',
+                          style: theme.textTheme.label.copyWith(
+                            color: theme.colorScheme.brandAccent,
+                          ),
+                        ),
+                        if (entry.value.rating != null)
+                          Text(
+                            entry.value.rating!.name,
+                            style: theme.textTheme.p,
+                          ),
+                        if (entry.value.responseText != null) ...[
+                          const SizedBox(height: AppSpacing.compact),
+                          Text(entry.value.responseText!),
+                        ],
+                        const SizedBox(height: AppSpacing.compact),
+                        Text(
+                          _formatDate(entry.value.createdAt.toLocal()),
+                          style: theme.textTheme.muted,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            if (_error != null)
+              _LoadAction(message: _error!, onPressed: _loadMore),
+            if (_hasMore && _error == null && _attempts.isNotEmpty)
+              ShadButton.outline(
+                enabled: !_loading,
+                onPressed: _loadMore,
+                child: Text(_loading ? 'Loading' : 'Load more history'),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
   static String _formatDate(DateTime value) {
     final minute = value.minute.toString().padLeft(2, '0');
     return '${value.day}/${value.month}/${value.year} · ${value.hour}:$minute';
+  }
+}
+
+class _LearningSummary extends StatelessWidget {
+  const _LearningSummary({required this.item});
+
+  final LearningItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = ShadTheme.of(context);
+    return Container(
+      key: const ValueKey('library-learning-summary'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.pageCompact),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.accentSubtle,
+        borderRadius: AppRadius.organicA,
+      ),
+      child: Wrap(
+        spacing: AppSpacing.page,
+        runSpacing: AppSpacing.regular,
+        children: [
+          _SummaryDatum(label: 'Reviews', value: '${item.reviewCount}'),
+          _SummaryDatum(label: 'Productions', value: '${item.productionCount}'),
+          _SummaryDatum(
+            label: 'Next review',
+            value: _LibraryDetailState._formatDate(item.nextReviewAt.toLocal()),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryDatum extends StatelessWidget {
+  const _SummaryDatum({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = ShadTheme.of(context);
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 116),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: theme.textTheme.meta.copyWith(letterSpacing: 0.8),
+          ),
+          const SizedBox(height: AppSpacing.compact),
+          Text(value, style: theme.textTheme.h4),
+        ],
+      ),
+    );
   }
 }
 
@@ -391,7 +526,7 @@ class _DetailField extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: theme.textTheme.small),
+          Text(label, style: theme.textTheme.label),
           const SizedBox(height: AppSpacing.compact),
           SelectableText(value!, style: theme.textTheme.p),
         ],
