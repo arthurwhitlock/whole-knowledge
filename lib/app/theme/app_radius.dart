@@ -1,18 +1,24 @@
 import 'package:flutter/widgets.dart';
 
 abstract final class AppRadius {
-  static const control = BorderRadius.all(Radius.circular(6));
-  static const surface = BorderRadius.all(Radius.circular(8));
-  static const organicSmall = BorderRadius.only(
-    topLeft: Radius.circular(14),
-    topRight: Radius.circular(6),
-    bottomRight: Radius.circular(14),
-    bottomLeft: Radius.circular(6),
-  );
-  static const organicLarge = BorderRadius.only(
+  static const control = BorderRadius.all(Radius.circular(7));
+  static const surface = BorderRadius.all(Radius.circular(12));
+  static const organicA = BorderRadius.only(
     topLeft: Radius.circular(24),
-    topRight: Radius.circular(10),
+    topRight: Radius.circular(14),
     bottomRight: Radius.circular(24),
-    bottomLeft: Radius.circular(10),
+    bottomLeft: Radius.circular(14),
   );
+  static const organicB = BorderRadius.only(
+    topLeft: Radius.circular(14),
+    topRight: Radius.circular(24),
+    bottomRight: Radius.circular(14),
+    bottomLeft: Radius.circular(24),
+  );
+
+  @Deprecated('Use organicB for compact expressive surfaces.')
+  static const organicSmall = organicB;
+
+  @Deprecated('Use organicA for prominent expressive surfaces.')
+  static const organicLarge = organicA;
 }

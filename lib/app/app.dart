@@ -19,6 +19,7 @@ class WholeKnowledgeApp extends StatelessWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
+      materialThemeBuilder: AppTheme.materialTheme,
       home: dependencies == null
           ? _BackendUnavailableScreen(message: backendMessage)
           : LearningWorkspace(dependencies: dependencies!),
