@@ -256,7 +256,6 @@ class TodayScreenState extends State<TodayScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 296),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -265,7 +264,7 @@ class TodayScreenState extends State<TodayScreen> {
                     color: theme.colorScheme.brandAccent,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.pageCompact),
+                const SizedBox(height: AppSpacing.largeSection),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: AnimatedSwitcher(
