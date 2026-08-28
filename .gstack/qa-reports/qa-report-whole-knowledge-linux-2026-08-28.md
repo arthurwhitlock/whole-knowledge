@@ -9,7 +9,7 @@
 | **PR** | — |
 | **Tier** | Standard |
 | **Scope** | Quiet-luxury visual and motion pass: Today, Capture, Library, Review, adaptive navigation |
-| **Duration** | 13 minutes |
+| **Duration** | 15 minutes |
 | **Screens / states visited** | 4 screens / 18 states |
 | **Screenshots** | 34 |
 | **Framework** | Flutter 3.47.1, Linux desktop |
