@@ -1,8 +1,10 @@
 # Whole Knowledge M1 — Discovery Core
 
-Status: CEO-reviewed specification  
-Mode: Scope Reduction  
-Approved approach: Focused Discovery vertical slice  
+Status: CEO-reviewed specification
+
+Mode: Scope Reduction
+
+Approved approach: Focused Discovery vertical slice
 Date: 2026-08-29
 
 ## 1. M1 product promise
@@ -367,7 +369,8 @@ graph, or Pro implementation ships.
 
 The future boundary is:
 
-> Free helps you learn and use it.  
+> Free helps you learn and use it.
+>
 > Pro helps you follow it further.
 
 Free retains Capture, definitions, POS, senses, essential examples, first
