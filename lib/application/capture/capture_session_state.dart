@@ -95,14 +95,19 @@ final class MeaningChoice {
 final class CaptureVocabularySenses extends CaptureSessionState {
   const CaptureVocabularySenses(
     super.draft, {
-    required this.lookup,
+    required this.lexical,
     required this.library,
     this.meaningChoice = const MeaningChoice(kind: MeaningChoiceKind.none),
   });
 
-  final LexicalLookup lookup;
+  final LexicalOutcome lexical;
   final LibraryOutcome library;
   final MeaningChoice meaningChoice;
+
+  LexicalLookup? get lookup => switch (lexical) {
+    LexicalFound(:final lookup) => lookup,
+    _ => null,
+  };
 }
 
 final class CaptureExpressionMeaning extends CaptureSessionState {

@@ -6,6 +6,7 @@ import 'package:whole_knowledge/application/capture/capture_draft.dart';
 import 'package:whole_knowledge/application/capture/lexical_provider.dart';
 import 'package:whole_knowledge/application/capture/discovery_submission.dart';
 import 'package:whole_knowledge/application/capture/discovery_validation.dart';
+import 'package:whole_knowledge/application/capture/discovery_failure.dart';
 import 'package:whole_knowledge/application/learning/capture_learning_item.dart';
 import 'package:whole_knowledge/application/learning/learning_item_repository.dart';
 import 'package:whole_knowledge/application/learning/review_repository.dart';
@@ -43,8 +44,12 @@ final class FakeLearningItemRepository implements LearningItemRepository {
   CaptureLearningItem? lastCapture;
   Completer<void>? createGate;
   Completer<void>? loadGate;
+  Completer<void>? matchGate;
+  Completer<void>? discoveryGate;
   bool shouldFailCreate = false;
   bool shouldFailLoads = false;
+  bool shouldFailMatches = false;
+  DiscoveryFailure? discoveryFailure;
   int createCalls = 0;
   int listAllCalls = 0;
   int listDueCalls = 0;
@@ -79,6 +84,12 @@ final class FakeLearningItemRepository implements LearningItemRepository {
 
   @override
   Future<List<LearningItem>> findActiveBySurfaceForm(String content) async {
+    await matchGate?.future;
+    if (shouldFailMatches) {
+      throw const DiscoveryFailure(
+        DiscoveryFailureCode.libraryCheckUnavailable,
+      );
+    }
     final key = DiscoveryValidation.surfaceMatchKey(content);
     return items
         .where(
@@ -93,6 +104,8 @@ final class FakeLearningItemRepository implements LearningItemRepository {
   Future<DiscoveryCompletion> completeDiscovery(
     DiscoverySubmission submission,
   ) async {
+    await discoveryGate?.future;
+    if (discoveryFailure case final failure?) throw failure;
     final normalized = submission.normalized();
     final prior = discoverySubmissions[normalized.submissionId];
     if (prior != null) {
@@ -286,6 +299,7 @@ final class FakeReviewRepository implements ReviewRepository {
 final class FakeCaptureDraftRepository implements CaptureDraftRepository {
   CaptureDraft? saved;
   int writes = 0;
+  final List<CaptureDraft> written = [];
   int clears = 0;
   bool shouldFailRead = false;
   bool shouldFailWrite = false;
@@ -302,6 +316,7 @@ final class FakeCaptureDraftRepository implements CaptureDraftRepository {
     if (shouldFailWrite) throw StateError('write unavailable');
     writes += 1;
     saved = draft;
+    written.add(draft);
   }
 
   @override
@@ -324,6 +339,7 @@ final class FakeLexicalProvider implements LexicalProvider {
     ],
   );
   Object? error;
+  Completer<LexicalLookup>? lookupGate;
   int lookupCalls = 0;
 
   @override
@@ -333,6 +349,7 @@ final class FakeLexicalProvider implements LexicalProvider {
   Future<LexicalLookup> lookup(String term) async {
     lookupCalls += 1;
     if (error case final value?) throw value;
+    if (lookupGate case final gate?) return gate.future;
     return result;
   }
 }
