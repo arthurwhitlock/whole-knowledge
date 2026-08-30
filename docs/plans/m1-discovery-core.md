@@ -1118,29 +1118,48 @@ The implementation updates a short troubleshooting runbook covering:
 ## 29. Test plan
 
 ```text
-CODE PATHS (58/58 specified)                         USER FLOWS
-[+] Controller: 28 paths                            [+] Discovery: 7 paths [→E2E]
-  ├── every state + public command                    ├── Vocabulary + production
-  ├── legal and invalid transitions                   ├── Expression + defer
-  ├── stale generations / partial reads               ├── Re-encounter three actions
-  ├── upstream invalidation / reconfirmation           └── restart + reconciliation
-  └── draft side effects / reconciliation            [+] Targeted Review: 5 paths
-[+] Adapters + database: 18 paths                     ├── complete / pause return
-  ├── provider status/decode/size/deadline             ├── stale/deleted match recovery
-  ├── normalizer parity / indexed match                ├── Show meaning writes nothing
-  ├── replay / conflict / validation                   └── Today origin unchanged
-  └── concurrency / ownership / scheduling
+TEST CONTRACT                                            USER FLOWS
+[+] Controller/draft: 80 named semantic cases           [→WIDGET] phase/state matrix
+    + every invalid public-command/phase pair            [→E2E] critical real journeys
+[+] Provider/repository/database contract                [→NATIVE QA] Linux + Android
+[+] Shared Review host/origin contract
 
-QUALITY TARGET: ★★★ behavior + edge + error for every path
-GAPS AFTER THIS PLAN: 0  |  E2E: deterministic full-app spine  |  EVAL: none
+COVERAGE TOTAL: derived from named manifest rows; never hand-maintained
+QUALITY TARGET: ★★★ behavior + edge + error for every applicable path
+EVAL: none (no LLM or prompt surface)
 ```
+
+The controller/draft suite uses test-only data records in
+`test/application/capture/capture_session_controller_test.dart` and the existing
+file-repository test. Each row names its initial state and durable draft,
+command/event, expected phase, expected authored/confirmation revisions,
+external call counts, and typed failure. A shared allowed-command map generates
+the remaining invalid command/phase pairs and asserts unchanged state, unchanged
+draft, and zero external calls. The implementation reports the numerator and
+denominator from these named rows; the plan never repeats a manually maintained
+`58/58` or `28 paths` claim.
+
+Minimum named semantic manifest:
+
+| Group | Cases | Required named behaviors |
+|---|---:|---|
+| Restore and draft lifecycle | 12 | missing draft; v1 term-only migration; v1 authored-field migration; v2 Entry; v2 meaning phase; v2 Production; stale confirmation stamps; prepared checkpoint; attempted checkpoint; corrupt JSON; unsupported version; read failure |
+| Entry and type | 8 | blank/whitespace; oversized content; single-token suggestion; multi-token suggestion; punctuation/hyphen rule; manual override and direct reversal; type change before meaning; late type change preserving authored fields while invalidating both confirmations |
+| Independent reads | 12 | repeated Discover coalescing; both reads start for Vocabulary; lexical-first usable partial; Library-first pending lexical; both succeed with no match; early exact match; late exact match preserving authored work; Library failure gates save; Library retry; lexical failure opens manual fallback; stale completion from either read; term/type change invalidates the generation |
+| Meaning selection | 13 | all POS groups retained; first provider selection; edit copied meaning; switch from untouched provider copy; propose switch from edited copy; Keep editing; Replace; open manual path; type manual meaning; provider selection preserves manual buffer; manual return restores buffer; failed/empty lookup opens manual editor; blank manual meaning blocks continuation |
+| Production and reconfirmation | 9 | enter with confirmed meaning; blank primary production; valid production stamps revision; meaning edit preserves/stales sentence; provider-sense change preserves/stales sentence; late type change preserves/stales sentence; `Use this meaning`; `This sentence still fits`; defer requires confirmed meaning but not production |
+| Re-encounter | 11 | sole-match auto-selection; multiple matches unselected; selection writes nothing; Learn another sense before selection; Learn another sense after selection; show meaning; hide meaning; new selection collapses reveal; Test myself before reveal; Test myself after reveal; stale/deleted item refresh |
+| Save, reconciliation, and completion | 15 | prepared checkpoint flush; prepared-write failure prevents RPC; attempted marker precedes RPC; repeated activation coalesces; new success; identical replay; response loss; same-ID/same-payload retry; validation returns to named field; definitive pre-commit rejection permits a new ID after correction; payload conflict blocks retry mutation; late existing-surface result; cleanup success; cleanup failure offers no duplicate action; Done/Capture another only after reconciliation |
+| **Named semantic total** | **80** | Invalid command/phase rows are generated in addition to these cases. |
 
 Required test suites:
 
 1. **Canonical state/event unit matrix:** every public controller command in
-   every relevant state, including valid/invalid transitions, stale generations,
-   partial reads, upstream invalidation/reconfirmation, persistence side effects,
-   and pending reconciliation.
+   every relevant state using the manifest above, including valid/invalid
+   transitions, stale generations, partial reads, upstream
+   invalidation/reconfirmation, persistence side effects, and pending
+   reconciliation. Each failure must name whether the user-visible state is
+   recoverable and prove that authored content did not change unexpectedly.
 2. **Draft v1→v2 and crash matrix:** missing/corrupt/unsupported drafts, prepared
    UUID, attempted marker flushed before RPC, local write failure preventing RPC,
    restart with frozen payload, identical replay, definitive rejection rotating
