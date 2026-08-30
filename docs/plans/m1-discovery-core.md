@@ -314,7 +314,7 @@ improbable
 Already in your knowledge
 
 ADJECTIVE
-unlikely to happen or be true
+Captured from The Left Hand of Darkness
 Last reviewed 4 days ago
 
 Test myself
@@ -325,9 +325,12 @@ Learn another sense
 Learned senses use the same editorial-row grammar as Discovery without implying
 that provider results and owned items are interchangeable. A sole active match
 is selected automatically. With multiple matches, no row is preselected; the
-learner chooses one definition before any item action appears. Selection uses
+learner chooses one cue row before any item action appears. Before reveal, a row
+shows POS, available captured context or source, capture date, and last-review
+fact—but never the saved meaning or first production. Selection uses
 accent-subtle fill, the narrow accent marker, semantic selected state, and
-retains the visible `Last reviewed` fact.
+retains those cues. Sparse legacy items use a neutral `Captured <date>` cue;
+they never invent or expose a meaning preview merely to differentiate rows.
 
 One shared action group follows the selected sense instead of repeating controls
 inside every row:
@@ -339,6 +342,16 @@ inside every row:
 Changing the selected row updates that one action group in place and writes no
 evidence. Keyboard focus moves from a selected row forward into the action group
 through ordinary traversal; selection itself does not unexpectedly move focus.
+
+`Show meaning` expands one inline detail region after the shared action group.
+It moves focus to a `Meaning` heading and shows the selected saved meaning,
+captured context/source, and first production when present. It writes no attempt,
+counter, or schedule change. The control becomes `Hide meaning`; hiding returns
+focus to that control. Selecting another learned sense collapses the prior
+detail, restores the unrevealed action label, and exposes no new evidence.
+Choosing `Test myself` before reveal therefore starts a clean retrieval. Choosing
+it after reveal remains allowed but accurately follows a learner-requested
+reference action rather than pretending the answer was not seen.
 
 When several items match, the learner first chooses the known sense. Then:
 
