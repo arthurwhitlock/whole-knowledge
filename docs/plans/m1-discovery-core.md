@@ -1022,15 +1022,21 @@ safe, gives a visible outcome, and has one named recovery.
 |---|---|---:|---:|---|---:|
 | Entry | Nil/blank/oversized input | Yes | Unit + widget | Inline field error | Metadata |
 | Type detection | Incorrect suggestion | Yes | Unit + widget | Visible manual override | No |
+| Draft migration | Authored v1 meaning/details are mistaken for lookup-only state | Yes | Repository + unit | Draft restored at meaning review; authored fields remain | Metadata on decode failure only |
+| Draft ordering | An older debounced snapshot finishes after newer authored work | Yes | Repository + unit | Latest revision remains authoritative | Metadata on rejected stale write |
 | Parallel reads | Double submit | Yes | Unit | One active generation | Metadata |
 | Parallel reads | User changes term mid-flight | Yes | Unit + widget | New term state only | Metadata |
+| Parallel reads | Late exact match arrives after meaning/production authoring | Yes | Unit + widget | Re-encounter explains match; authored fields resume through Learn another sense | Metadata |
 | Library check | Provider succeeds, Library fails | Yes | Unit + widget | Discovery continues; save gated | Metadata |
 | Provider | Library succeeds, provider fails | Yes | Unit + widget | Manual meaning + Retry | Metadata |
 | Provider stream | Single/cumulative body exceeds 1 MiB | Yes | Unit | Abort before retaining excess bytes | Metadata |
 | Provider stream | Headers arrive but body stalls | Yes | Unit | End-to-end timeout aborts request | Metadata |
 | Sense list | 10–20 senses | Yes | Unit + widget | Two per POS + expansion | No |
 | Sense choice | Later POS hidden | Yes | Widget | Every POS heading visible | No |
+| Sense choice | Provider selection overwrites the saved manual buffer | Yes | Unit + widget | Returning to manual restores the exact authored text | No |
+| Sense choice | A stale Replace action targets a changed term/type/row | Yes | Unit + widget | Proposal is dismissed; current meaning remains | Metadata |
 | Production | Sense changes after sentence | Yes | Unit + widget | Sentence preserved, unconfirmed | Metadata |
+| Production | Restart or late type change leaves stale confirmations looking valid | Yes | Unit + widget | Meaning and sentence remain visible with required reconfirmation | No |
 | Draft | Process exits before prepared write | Yes | Repository + unit | No RPC; authored state remains | Metadata on failure |
 | Draft | Process exits after attempted write | Yes | Repository + integration | Frozen same-ID reconciliation | Metadata |
 | Save | Repeated activation | Yes | Unit + integration | One in-flight mutation | Metadata |
@@ -1041,8 +1047,12 @@ safe, gives a visible outcome, and has one named recovery.
 | Scheduling | Production completed | Yes | Unit + pgTAP | First review in 24 hours | No |
 | Scheduling | Production deferred | Yes | Unit + pgTAP | Ready to practice now | No |
 | Re-encounter | Multiple learned senses | Yes | Repository + widget | All matching senses shown | No |
+| Re-encounter | Saved answer leaks into widgets or semantics before reveal | Yes | Widget semantics | Only retrieval-safe POS/context/date/review cues exist | No |
+| Re-encounter | Generic item update time is shown as last Review | Yes | pgTAP + repository + widget | Nullable authoritative review cue or truthful capture cue | Metadata on mapping failure |
 | Re-encounter | Item disappears before Test myself | Yes | Unit + widget | Refresh/recovery message | Metadata |
 | Targeted Review | Complete or pause from Capture | Yes | Widget + integration | Return to Capture; draft preserved | No |
+| Targeted Review | A paused origin-owned response is replaced by a new launch | Yes | Unit + widget | Existing Resume review affordance remains; replacement is blocked | No |
+| Relative copy | Local midnight or resume leaves stale day wording | Yes | Pure formatter + widget | Copy and full semantic label refresh in place | No |
 | Security | Caller supplies another owner/protected state | Yes | pgTAP negative | Mutation rejected | Server metadata |
 | Rollout | M0 client after grant revocation | Yes by rollout | Smoke + runbook | Avoided by staged cutover | Deploy record |
 
@@ -1582,6 +1592,21 @@ merge-conflict cost outweighs parallelism. T8 and T9 follow the integrated tree.
   creating the provider worktree. No other lanes should edit that module in
   parallel.
 
+Post-design engineering findings stay inside the parent execution graph:
+
+| Re-review finding | Parent task(s) |
+|---|---|
+| D1 single execution graph | T5, T7, T8, T9; no duplicate DT task stream |
+| D2 durable authored/revision contract | T5 |
+| D3 authoritative last-review projection | T1, T2, T3 |
+| D4 sealed phase plus phase-local state | T5 |
+| D5 one workspace Review host | T6 |
+| D6 shared relative-time presentation | T7, T8 |
+| D7 focused Capture file responsibilities | T1, T5, T7 |
+| D8 80-case controller/draft manifest | T5, T8 |
+| D9 phase/accessibility widget matrix | T7, T8 |
+| D10 three cross-platform deterministic journeys | T8 |
+
 - [ ] **T1 (P1, human: ~1.5 days / Codex: ~2.5h)** — Contracts — Define the smallest provider-neutral Discovery contract.
   - Surfaced by: Architecture D2/D7 and Code quality D10/D11/D13.
   - Files: the section 19 Capture application value files, lexical values, `LearningItem` due predicate, focused tests.
@@ -1637,9 +1662,11 @@ Accepted follow-ups are recorded in `TODOS.md`:
 5. P3 multilingual identity and provider routing.
 6. P3 deeper knowledge exploration and future Pro boundary.
 
-The engineering review found no additional deferred-work candidate worth adding
-to `TODOS.md`; the six CEO-approved follow-ups remain unchanged. No unresolved
-product or architecture decisions remain in this specification.
+The original and post-design engineering reviews found no additional
+deferred-work candidate worth adding to `TODOS.md`: every new finding is required
+to implement an already accepted M1 behavior safely. The six CEO-approved
+follow-ups remain unchanged. No unresolved product or architecture decisions
+remain in this specification.
 
 ## 41. M1 design-review outcome
 
