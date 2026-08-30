@@ -190,8 +190,20 @@ Detection is a suggestion, not classification authority:
 - multiple whitespace-separated tokens → likely Expression;
 - punctuation, apostrophes, and hyphens do not independently force Expression;
 - the user may switch type before or during the flow;
-- changing type invalidates derived lookup and match state while preserving
-  authored text for deliberate reconfirmation.
+- changing type before authored meaning switches immediately, invalidates
+  derived lookup and match state, and enters the correct meaning path;
+- changing type after authored meaning also switches immediately without a
+  modal. Meaning, encounter details, and production remain visible. Moving to
+  Expression clears provider selection and derived POS; moving to Vocabulary
+  treats the retained meaning as manual until a provider sense is deliberately
+  chosen;
+- the new meaning phase shows `Review this meaning for Expression` or `Review
+  this meaning for Vocabulary` as an inline status. Editing the meaning or
+  activating `Use this meaning` reconfirms it. Existing production remains
+  visible but unconfirmed until edited or `This sentence still fits` is
+  activated. Completion stays unavailable until both confirmations are valid;
+- focus moves to the reconfirmation heading or first invalid editor, not back to
+  Entry. Switching type never clears learner-authored text or opens a dialog.
 
 M1 makes one honest language claim: automatic lexical Discovery is English.
 Expressions and non-English language remain capturable through manual meaning
