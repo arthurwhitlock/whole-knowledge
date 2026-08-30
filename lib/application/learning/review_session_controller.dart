@@ -37,6 +37,7 @@ final class ReviewSessionController {
   }
 
   bool start(List<LearningItem> dueItems) {
+    if (isReviewing || isPaused) return false;
     queue = List.of(dueItems);
     isReviewing = queue.isNotEmpty;
     isPaused = false;

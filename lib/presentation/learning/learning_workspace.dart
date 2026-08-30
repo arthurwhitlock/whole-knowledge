@@ -5,14 +5,18 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:whole_knowledge/app/app_dependencies.dart';
 import 'package:whole_knowledge/app/theme/app_spacing.dart';
 import 'package:whole_knowledge/application/capture/capture_session_controller.dart';
+import 'package:whole_knowledge/application/learning/review_session_controller.dart';
 import 'package:whole_knowledge/application/learning/today_load_controller.dart';
 import 'package:whole_knowledge/application/learning/today_overview.dart';
 import 'package:whole_knowledge/domain/learning/learning_item.dart';
 import 'package:whole_knowledge/presentation/learning/capture_screen.dart';
 import 'package:whole_knowledge/presentation/learning/library_screen.dart';
+import 'package:whole_knowledge/presentation/learning/review_focus_view.dart';
 import 'package:whole_knowledge/presentation/learning/today_screen.dart';
 
 enum WorkspaceDestination { today, capture, library }
+
+enum ReviewLaunchOrigin { today, capture }
 
 class LearningWorkspace extends StatefulWidget {
   const LearningWorkspace({required this.dependencies, super.key});
@@ -26,12 +30,12 @@ class LearningWorkspace extends StatefulWidget {
 class _LearningWorkspaceState extends State<LearningWorkspace>
     with WidgetsBindingObserver {
   final _contentKey = GlobalKey();
-  final _todayKey = GlobalKey<TodayScreenState>();
   late final CaptureSessionController _capture;
   late final TodayLoadController _today;
+  late final ReviewSessionController _review;
   WorkspaceDestination _destination = WorkspaceDestination.today;
+  ReviewLaunchOrigin? _reviewOrigin;
   bool _startupReady = false;
-  bool _reviewFocusMode = false;
   Timer? _dueRefreshTimer;
   int _libraryGeneration = 0;
   bool _libraryVisited = false;
@@ -48,6 +52,8 @@ class _LearningWorkspaceState extends State<LearningWorkspace>
     _today = TodayLoadController(
       LoadTodayOverview(widget.dependencies.learningItems),
     )..addListener(_todayChanged);
+    _review = ReviewSessionController(widget.dependencies.reviews)
+      ..addListener(_reviewChanged);
     _initialize();
   }
 
@@ -71,6 +77,8 @@ class _LearningWorkspaceState extends State<LearningWorkspace>
     _capture.dispose();
     _today.removeListener(_todayChanged);
     _today.dispose();
+    _review.removeListener(_reviewChanged);
+    _review.dispose();
     super.dispose();
   }
 
@@ -87,8 +95,14 @@ class _LearningWorkspaceState extends State<LearningWorkspace>
 
   void _todayChanged() {
     if (!mounted) return;
+    final overview = _today.overview;
+    if (overview != null) _review.updateDueItems(overview.dueItems);
     setState(() {});
     if (!_today.isLoading) _scheduleDueRefresh();
+  }
+
+  void _reviewChanged() {
+    if (mounted) setState(() {});
   }
 
   void _select(WorkspaceDestination destination) {
@@ -117,6 +131,56 @@ class _LearningWorkspaceState extends State<LearningWorkspace>
     });
     _today.reconcileCompleted(updatedItem);
     _today.refresh();
+    if (_review.queue.isEmpty) {
+      final origin = _reviewOrigin;
+      _reviewOrigin = null;
+      if (origin == ReviewLaunchOrigin.capture) {
+        _destination = WorkspaceDestination.capture;
+        unawaited(_capture.discover());
+      } else {
+        _destination = WorkspaceDestination.today;
+      }
+    }
+  }
+
+  void _startDueReview() {
+    final due = _today.overview?.dueItems ?? const <LearningItem>[];
+    if (_review.start(due)) {
+      _reviewOrigin = ReviewLaunchOrigin.today;
+      setState(() => _destination = WorkspaceDestination.today);
+    }
+  }
+
+  bool _startTargetedReview(LearningItem item) {
+    if (!_review.start([item])) return false;
+    _reviewOrigin = ReviewLaunchOrigin.capture;
+    setState(() => _destination = WorkspaceDestination.capture);
+    return true;
+  }
+
+  void _resumeReview() {
+    _review.resume();
+  }
+
+  void _pauseReview() {
+    if (_review.isSaving || !_review.isReviewing) return;
+    _review.pause();
+    setState(() {
+      _destination = _reviewOrigin == ReviewLaunchOrigin.capture
+          ? WorkspaceDestination.capture
+          : WorkspaceDestination.today;
+    });
+  }
+
+  void _reloadReviewOrigin() {
+    final origin = _reviewOrigin;
+    _reviewOrigin = null;
+    setState(() {
+      _destination = origin == ReviewLaunchOrigin.capture
+          ? WorkspaceDestination.capture
+          : WorkspaceDestination.today;
+    });
+    _today.refresh();
   }
 
   void _scheduleDueRefresh() {
@@ -139,11 +203,9 @@ class _LearningWorkspaceState extends State<LearningWorkspace>
     }
     final theme = ShadTheme.of(context);
     return PopScope(
-      canPop: !_reviewFocusMode,
+      canPop: !_review.isReviewing,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && _reviewFocusMode) {
-          _todayKey.currentState?.pauseReviewFromSystem();
-        }
+        if (!didPop && _review.isReviewing) _pauseReview();
       },
       child: Scaffold(
         body: SafeArea(
@@ -151,25 +213,34 @@ class _LearningWorkspaceState extends State<LearningWorkspace>
             builder: (context, constraints) {
               final wide =
                   constraints.maxWidth >= AppSpacing.navigationBreakpoint;
+              if (_review.isReviewing) {
+                return ReviewFocusView(
+                  controller: _review,
+                  onPaused: _pauseReview,
+                  onCompleted: _reviewCompleted,
+                  onReload: _reloadReviewOrigin,
+                );
+              }
               final content = _WorkspaceContent(
                 key: _contentKey,
                 destination: _destination,
                 dependencies: widget.dependencies,
                 capture: _capture,
                 today: _today,
-                todayKey: _todayKey,
                 libraryVisited: _libraryVisited,
                 libraryGeneration: _libraryGeneration,
                 onRetry: _today.refresh,
                 onCaptured: _captured,
-                onReviewCompleted: _reviewCompleted,
                 onQuickCapture: () => _select(WorkspaceDestination.capture),
-                onReviewModeChanged: (active) {
-                  setState(() => _reviewFocusMode = active);
-                },
+                reviewPaused:
+                    _review.isPaused &&
+                    _reviewOrigin == ReviewLaunchOrigin.today,
+                reviewCompleted: _review.completed,
+                onStartReview: _startDueReview,
+                onResumeReview: _resumeReview,
+                onStartTargetedReview: _startTargetedReview,
               );
 
-              if (_reviewFocusMode) return content;
               if (!wide) {
                 return Column(
                   children: [
@@ -268,28 +339,32 @@ class _WorkspaceContent extends StatelessWidget {
     required this.dependencies,
     required this.capture,
     required this.today,
-    required this.todayKey,
     required this.libraryVisited,
     required this.libraryGeneration,
     required this.onRetry,
     required this.onCaptured,
-    required this.onReviewCompleted,
     required this.onQuickCapture,
-    required this.onReviewModeChanged,
+    required this.reviewPaused,
+    required this.reviewCompleted,
+    required this.onStartReview,
+    required this.onResumeReview,
+    required this.onStartTargetedReview,
   });
 
   final WorkspaceDestination destination;
   final AppDependencies dependencies;
   final CaptureSessionController capture;
   final TodayLoadController today;
-  final GlobalKey<TodayScreenState> todayKey;
   final bool libraryVisited;
   final int libraryGeneration;
   final VoidCallback onRetry;
   final VoidCallback onCaptured;
-  final ValueChanged<LearningItem> onReviewCompleted;
   final VoidCallback onQuickCapture;
-  final ValueChanged<bool> onReviewModeChanged;
+  final bool reviewPaused;
+  final bool reviewCompleted;
+  final VoidCallback onStartReview;
+  final VoidCallback onResumeReview;
+  final bool Function(LearningItem) onStartTargetedReview;
 
   @override
   Widget build(BuildContext context) {
@@ -297,18 +372,22 @@ class _WorkspaceContent extends StatelessWidget {
       index: destination.index,
       children: [
         TodayScreen(
-          key: todayKey,
           overview: today.overview,
           isInitialLoading: today.isInitialLoading,
           isRefreshing: today.isRefreshing,
           loadError: today.error,
-          reviews: dependencies.reviews,
-          onCompleted: onReviewCompleted,
+          reviewPaused: reviewPaused,
+          reviewCompleted: reviewCompleted,
+          onStartReview: onStartReview,
+          onResumeReview: onResumeReview,
           onReload: onRetry,
           onQuickCapture: onQuickCapture,
-          onReviewModeChanged: onReviewModeChanged,
         ),
-        CaptureScreen(controller: capture, onCaptured: onCaptured),
+        CaptureScreen(
+          controller: capture,
+          onCaptured: onCaptured,
+          onTestItem: onStartTargetedReview,
+        ),
         if (libraryVisited)
           LibraryScreen(
             key: ValueKey('library-$libraryGeneration'),

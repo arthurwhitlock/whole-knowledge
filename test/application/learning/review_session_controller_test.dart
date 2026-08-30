@@ -72,4 +72,24 @@ void main() {
     expect(reviews.lastResponse, 'same response');
     expect(reviews.lastRating, ReviewRating.hard);
   });
+
+  test('a paused response cannot be replaced by a new launch', () {
+    final learningItems = FakeLearningItemRepository();
+    final controller = ReviewSessionController(
+      FakeReviewRepository(learningItems),
+    );
+    final first = learningItem(id: 'first', content: 'first item');
+    final replacement = learningItem(id: 'second', content: 'second item');
+
+    expect(controller.start([first]), isTrue);
+    controller.reveal();
+    controller.enterProduction();
+    controller.updateResponse('preserved response');
+    controller.pause();
+
+    expect(controller.start([replacement]), isFalse);
+    expect(controller.queue.single.id, 'first');
+    expect(controller.responseText, 'preserved response');
+    expect(controller.isPaused, isTrue);
+  });
 }

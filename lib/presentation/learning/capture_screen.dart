@@ -12,11 +12,13 @@ class CaptureScreen extends StatefulWidget {
   const CaptureScreen({
     required this.controller,
     required this.onCaptured,
+    this.onTestItem,
     super.key,
   });
 
   final CaptureSessionController controller;
   final VoidCallback onCaptured;
+  final bool Function(LearningItem)? onTestItem;
 
   @override
   State<CaptureScreen> createState() => _CaptureScreenState();
