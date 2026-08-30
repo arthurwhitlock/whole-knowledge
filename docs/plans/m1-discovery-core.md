@@ -458,6 +458,22 @@ available without making the visual copy bureaucratic. Refresh the relative
 label when the app resumes or the local calendar day changes while this state is
 open.
 
+One pure presentation formatter owns relative calendar wording for both
+Discovered timing and Re-encounter's last-review cue. It accepts the persisted
+instant, an explicit local `now`, and `MaterialLocalizations`; tests never depend
+on ambient `DateTime.now()`. It compares local calendar dates rather than elapsed
+24-hour durations, uses the platform-localized short/full date and time formats,
+and appends `DateTime.timeZoneName` only to the full semantic label. No `intl`
+import, clock package, or application/domain time service is added.
+
+The thin Capture phase host owns one presentation-only clock tick while the
+active phase contains relative copy. It computes the next local midnight with a
+local calendar constructor, schedules one cancellable timer, rebuilds relative
+text at the boundary, and schedules the next boundary again. On lifecycle resume
+it refreshes `now` immediately and reschedules; on phase exit or disposal it
+cancels the timer. This clock cannot alter draft, schedule, evidence, or workflow
+eligibility.
+
 Deferred production says `Ready to practice now` instead and exposes the exact
 schedule only through the saved item's ordinary detail. The state is
 announced as a semantic live region. Motion is a reduced-motion-safe fade and
@@ -1513,12 +1529,12 @@ merge-conflict cost outweighs parallelism. T8 and T9 follow the integrated tree.
 - [ ] **T7 (P1, human: ~3 days / Codex: ~6h)** — Presentation — Split Capture into focused phase widgets without a new UI framework.
   - Surfaced by: Code quality D10/D12, the CEO-approved phase flow, and all design-review information-architecture, interaction-state, design-system, and accessibility decisions.
   - Files: thin `capture_screen.dart` plus `presentation/learning/capture/` Entry, Senses/Meaning, Re-encounter, Production, Discovered, and shared widgets.
-  - Includes: one centered phase document, deterministic scan hierarchy and Back behavior, editorial sense rows, compact selected-meaning editing, inline replacement confirmation, retrieval-first Re-encounter reveal, one shared action group, encounter-details disclosure, quiet-confidence copy, exhaustive state rendering and recovery actions, adaptive layout, semantics, focus, keyboard/touch/IME, and reduced motion.
-  - Verify: all six phases preserve shell and subject position; every loading/empty/error/success/partial state is observable; independent POS expansion, 20-sense flow, 640/760/960 boundaries, 200% text scale, Android IME, ordinary focus traversal, live regions, reduced motion, and 44px targets all behave as specified.
+  - Includes: one centered phase document, deterministic scan hierarchy and Back behavior, editorial sense rows, compact selected-meaning editing, inline replacement confirmation, retrieval-first Re-encounter reveal, one shared action group, encounter-details disclosure, quiet-confidence copy, the section 11 pure relative-calendar formatter and single phase-host clock tick, exhaustive state rendering and recovery actions, adaptive layout, semantics, focus, keyboard/touch/IME, and reduced motion.
+  - Verify: all six phases preserve shell and subject position; every loading/empty/error/success/partial state is observable; persisted review/discovery instants produce localized visual and full semantic copy; local-midnight and lifecycle refreshes are deterministic; independent POS expansion, 20-sense flow, 640/760/960 boundaries, 200% text scale, Android IME, ordinary focus traversal, live regions, reduced motion, and 44px targets all behave as specified.
 - [ ] **T8 (P1, human: ~2.5 days / Codex: ~5h)** — Verification — Add the full layered suite and run both first-class targets.
   - Surfaced by: Test D15–D19, the mandatory due-state regression, and the design review's detailed interaction matrix.
   - Files: unit/widget/adapter/database/two-client suites plus `integration_test/discovery_flow_test.dart` and SDK dev dependency.
-  - Verify: all commands in section 29, deterministic Linux and Android Discovery spine, critical due-state regression, authored-work preservation, late-match interruption, meaning reveal/no-write behavior, relative timing refresh, and full light/dark native visual QA across Entry, large Vocabulary results, Re-encounter, Production with IME, errors, and Discovered.
+  - Verify: all commands in section 29, deterministic Linux and Android Discovery spine, critical due-state regression, authored-work preservation, late-match interruption, meaning reveal/no-write behavior, relative timing at same-day/midnight/tomorrow/far-date/daylight-saving boundaries plus resume refresh, and full light/dark native visual QA across Entry, large Vocabulary results, Re-encounter, Production with IME, errors, and Discovered.
 - [ ] **T9 (P1, human: ~1 day / Codex: ~2h)** — Reliability/docs/rollout — Add privacy-safe diagnostics and update durable documentation; deploy only under separate approval.
   - Surfaced by: Error/rescue, observability, deployment, stale-diagram, and design-system alignment reviews.
   - Files: failure boundaries, troubleshooting runbook, `DESIGN.md`, `docs/architecture.md`, `README.md`, later grant-hardening migration.
