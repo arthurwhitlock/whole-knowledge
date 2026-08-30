@@ -1363,28 +1363,28 @@ merge-conflict cost outweighs parallelism. T8 and T9 follow the integrated tree.
   - Includes: grouped POS output, no global 12-sense truncation, pre-allocation 1 MiB cap, `BytesBuilder`, end-to-end aborting deadline, existing coalescing/attribution.
   - Verify: multi-POS 20-sense payload, one-chunk and cumulative overflow, stalled header/body, 404/429/non-2xx/malformed/empty response.
 - [ ] **T5 (P1, human: ~3 days / Codex: ~5h)** — State and drafts — Evolve `CaptureSessionController` into the sealed Discovery state family and migrate draft v1→v2.
-  - Surfaced by: Architecture D3/D4/D7 and Test D17/D18.
+  - Surfaced by: Architecture D3/D4/D7, Test D17/D18, and the design review's interaction-contract decisions.
   - Files: Capture draft/repository/controller/state and focused tests.
-  - Includes: generation guards, partial read states, authored-data restoration, prepared/attempted submission checkpoints, frozen reconciliation payload, upstream invalidation/reconfirmation.
-  - Verify: canonical 28-path state/event matrix and complete crash/restart matrix.
+  - Includes: generation guards, partial read states, authored-data restoration, manual/provider meaning-path preservation, edited-meaning replacement protection, late type/meaning/production reconfirmation, prepared/attempted submission checkpoints, frozen reconciliation payload, and upstream invalidation/reconfirmation.
+  - Verify: canonical state/event matrix, grouped expansion, manual/provider switching, edited-value replacement, another-sense escape, type reconfirmation, and the complete crash/restart matrix.
 - [ ] **T6 (P1, human: ~1.5 days / Codex: ~2.5h)** — Review host — Give `LearningWorkspace` shared Review-session ownership and launch origin.
   - Surfaced by: Architecture D6 and Test D19.
   - Files: workspace, Today/Capture coordination, Review interaction tests.
   - Includes: due queue from Today, targeted one-item queue from Capture, return-to-origin behavior, stale/deleted-item recovery.
   - Verify: complete/pause preserves Capture draft, Show meaning writes nothing, Today flow remains unchanged.
 - [ ] **T7 (P1, human: ~3 days / Codex: ~6h)** — Presentation — Split Capture into focused phase widgets without a new UI framework.
-  - Surfaced by: Code quality D10/D12 and the CEO-approved phase flow.
+  - Surfaced by: Code quality D10/D12, the CEO-approved phase flow, and all design-review information-architecture, interaction-state, design-system, and accessibility decisions.
   - Files: thin `capture_screen.dart` plus `presentation/learning/capture/` Entry, Senses/Meaning, Re-encounter, Production, Discovered, and shared widgets.
-  - Includes: exhaustive state rendering and failure copy/actions, adaptive layout, semantics, focus, keyboard/touch/IME, reduced motion.
-  - Verify: every phase and partial/error state, independent POS expansion, 20-sense flow, narrow/wide/text-scale coverage.
+  - Includes: one centered phase document, deterministic scan hierarchy and Back behavior, editorial sense rows, compact selected-meaning editing, inline replacement confirmation, retrieval-first Re-encounter reveal, one shared action group, encounter-details disclosure, quiet-confidence copy, exhaustive state rendering and recovery actions, adaptive layout, semantics, focus, keyboard/touch/IME, and reduced motion.
+  - Verify: all six phases preserve shell and subject position; every loading/empty/error/success/partial state is observable; independent POS expansion, 20-sense flow, 640/760/960 boundaries, 200% text scale, Android IME, ordinary focus traversal, live regions, reduced motion, and 44px targets all behave as specified.
 - [ ] **T8 (P1, human: ~2.5 days / Codex: ~5h)** — Verification — Add the full layered suite and run both first-class targets.
-  - Surfaced by: Test D15–D19 and the mandatory due-state regression.
+  - Surfaced by: Test D15–D19, the mandatory due-state regression, and the design review's detailed interaction matrix.
   - Files: unit/widget/adapter/database/two-client suites plus `integration_test/discovery_flow_test.dart` and SDK dev dependency.
-  - Verify: all commands in section 29, deterministic Linux and Android Discovery spine, critical due-state regression.
+  - Verify: all commands in section 29, deterministic Linux and Android Discovery spine, critical due-state regression, authored-work preservation, late-match interruption, meaning reveal/no-write behavior, relative timing refresh, and full light/dark native visual QA across Entry, large Vocabulary results, Re-encounter, Production with IME, errors, and Discovered.
 - [ ] **T9 (P1, human: ~1 day / Codex: ~2h)** — Reliability/docs/rollout — Add privacy-safe diagnostics and update durable documentation; deploy only under separate approval.
-  - Surfaced by: Error/rescue, observability, deployment, and stale-diagram reviews.
+  - Surfaced by: Error/rescue, observability, deployment, stale-diagram, and design-system alignment reviews.
   - Files: failure boundaries, troubleshooting runbook, `DESIGN.md`, `docs/architecture.md`, `README.md`, later grant-hardening migration.
-  - Verify: every registry row has stable recovery/copy/test, diagrams are current, and both approved live smoke journeys pass before direct insert is revoked.
+  - Verify: every registry row has stable recovery/copy/test, diagrams and the shipped Capture design contract are current, `/design-review` has checked both native targets, and both approved live smoke journeys pass before direct insert is revoked.
 
 ## 40. Deferred work
 
@@ -1447,32 +1447,16 @@ section 33. The TODO review produced **0 new candidates**: every design finding
 was resolved in scope, and the six CEO-approved follow-ups in `TODOS.md` remain
 unchanged.
 
-### Design-review implementation tasks
+### Design-review implementation mapping
 
-These refine existing T5 and T7–T9; they do not add product scope or authorize
-hosted deployment. Effort is a review-specific slice within the parent task, not
-an additive estimate.
-
-- [ ] **DT1 (P1, human: ~1 day / Codex: ~2h)** — Capture composition — Build the focused phase document and deterministic hierarchy.
-  - Surfaced by: Information Architecture — phase anatomy, scan order, Back, subject position, and terminal actions were previously underspecified.
-  - Files: `lib/presentation/learning/capture_screen.dart`, `lib/presentation/learning/capture/`, focused widget tests.
-  - Verify: all six phases preserve shell/subject position, render the specified first/second/third scan targets, and move focus correctly.
-- [ ] **DT2 (P1, human: ~1.5 days / Codex: ~3h)** — Discovery interaction — Build the editorial sense, meaning, Re-encounter, disclosure, and reconfirmation behaviors.
-  - Surfaced by: AI Slop, Design System, and Unresolved Decisions — repeated-card risk and eleven interaction choices were resolved.
-  - Files: Capture phase widgets, `CaptureSessionController`, draft values, focused unit/widget tests.
-  - Verify: grouped expansion, manual meaning, edited-value replacement, retrieval-first reveal, another-sense escape, and type reconfirmation preserve authored work.
-- [ ] **DT3 (P1, human: ~1 day / Codex: ~2h)** — Visible states and voice — Render the complete state matrix and quiet-confidence copy.
-  - Surfaced by: Interaction State Coverage and User Journey — parallel partial results and emotional/recovery behavior lacked a visible specification.
-  - Files: Capture phase/status widgets, exhaustive failure-copy mapping, controller/widget tests.
-  - Verify: every matrix cell has observable UI, late matches never lose work, and errors name one adjacent recovery action without praise or blame.
-- [ ] **DT4 (P1, human: ~1 day / Codex: ~2h)** — Adaptive access — Implement width-, IME-, text-scale-, keyboard-, and screen-reader behavior.
-  - Surfaced by: Responsive and Accessibility — action reachability and phase semantics were underspecified under constrained height.
-  - Files: Capture layout/focus widgets and narrow/wide/text-scale widget tests.
-  - Verify: 640/760/960 boundaries, Android keyboard insets, 200% text scaling, ordinary traversal, live regions, reduced motion, and 44px minimum targets.
-- [ ] **DT5 (P2, human: ~0.5 day / Codex: ~1h)** — Design documentation and QA — Reconcile the shipped Capture system with durable docs and native visual evidence.
-  - Surfaced by: Design System Alignment and unavailable pre-implementation mockups.
-  - Files: `DESIGN.md`, relevant architecture/QA documentation, screenshot artifacts outside source control where appropriate.
-  - Verify: Linux and Android visual QA covers Entry, large Vocabulary results, Re-encounter, Production with IME, errors, and Discovered in light/dark themes; run `/design-review` after implementation.
+The accepted design work is folded into the engineering execution graph rather
+than maintained as a second DT1–DT5 task stream: state and authored-work
+contracts belong to T5, phase composition and interaction behavior to T7,
+cross-platform interaction and visual evidence to T8, and durable design
+documentation plus post-implementation `/design-review` to T9. This preserves
+every accepted design decision without duplicate ownership, estimates, or
+verification checklists. It does not add product scope or authorize hosted
+deployment.
 
 **Design verdict:** design-complete with 0 unresolved decisions. Run
 `/design-review` after implementation for native visual QA.
