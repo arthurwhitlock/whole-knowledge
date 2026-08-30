@@ -1123,6 +1123,7 @@ TEST CONTRACT                                            USER FLOWS
     + every invalid public-command/phase pair            [→E2E] critical real journeys
 [+] Provider/repository/database contract                [→NATIVE QA] Linux + Android
 [+] Shared Review host/origin contract
+[+] Widget: 7 focused suites with named assertions
 
 COVERAGE TOTAL: derived from named manifest rows; never hand-maintained
 QUALITY TARGET: ★★★ behavior + edge + error for every applicable path
@@ -1174,12 +1175,30 @@ Required test suites:
    releasing the advisory lock; also prove `last_reviewed_at` is null at capture,
    advances exactly once with a rated Review, survives identical replay, and
    cannot be supplied or mutated by the client.
-5. **Targeted Review interaction suite:** launch a non-due matched item, complete
+5. **Phase-mirrored widget and accessibility matrix `[→WIDGET]`:** use focused
+   files rather than one Capture mega-test. Each test pumps a public phase widget
+   or the thin host with immutable state and invokes public callbacks; it does
+   not reach into private controller fields.
+
+   | Test file | Minimum assertions |
+   |---|---|
+   | `test/presentation/learning/capture/entry_checking_test.dart` | Empty/oversized error is adjacent and focused; type status/reversal order is semantic; Enter and Discover share one command; subject remains stable; Library and lexical progress/failure/retry render independently; usable partial data remains visible; save gating is named; late match moves to Re-encounter without losing authored controls. |
+   | `test/presentation/learning/capture/vocabulary_meaning_test.dart` | Every POS heading renders; exactly two senses per group precede independent expansion; example contrast role and row selection semantics are present; selected summary/edit focus works; Keep editing/Replace is inline; one manual action/editor exists; manual buffer returns; encounter details appear only after valid meaning and reopen for authored/error content. |
+   | `test/presentation/learning/capture/reencounter_test.dart` | Saved meaning/production are absent from both widgets and semantics before reveal; sole/multiple selection rules and shared action group are exact; Learn another sense is available preselection; show/hide focus behavior works; changing item collapses reveal; Test myself uses the selected item without writing evidence. |
+   | `test/presentation/learning/capture/production_test.dart` | Meaning/POS remain visible; blank/length errors focus correctly; defer remains secondary; meaning/sense/type changes preserve but visibly stale the sentence; both explicit reconfirm actions restore eligibility; view insets keep editor/error and in-flow actions reachable. |
+   | `test/presentation/learning/capture/discovered_test.dart` | Saved/replayed item content is the anchor; deferred production omits an empty quotation; persisted timing produces visual and full semantic copy; midnight/resume tick refreshes deterministically; Done is first/primary; actions stack when constrained; no timer navigates automatically. |
+   | `test/presentation/learning/learning_workspace_review_host_test.dart` | Today and Capture launch the same focus view/controller; shell hides only during active Review; system Back pauses directly; origin is restored; paused response cannot be replaced; complete reconciliation updates Today and Capture; stale targeted item recovers without losing the draft. |
+   | `test/presentation/learning/capture/adaptive_access_test.dart` | Representative constraints immediately below/at 640, 760, and 960px; 200% text scale; simulated Android view insets; ordinary Tab/Shift+Tab order; visible focus; one live-region announcement per state change; 44px minimum targets; disabled animations; no horizontal scrolling or layout exception. |
+
+   These tests own behavioral, layout-safety, focus, and semantic evidence.
+   Light/dark aesthetic quality, typography rhythm, and visual restraint remain
+   native `/design-review` responsibilities rather than brittle golden tests.
+6. **Targeted Review interaction suite:** launch a non-due matched item, complete
    or pause back to Capture with its draft intact, recover from stale/deleted
    items, prove Show meaning writes no attempt, resume a paused origin-owned
    session without replacement, resume Learn another sense, and keep the
    Today-origin due flow unchanged.
-6. **Deterministic full-app spine `[→E2E]`:** add the Flutter SDK
+7. **Deterministic full-app spine `[→E2E]`:** add the Flutter SDK
    `integration_test` dependency and run new Vocabulary → intended sense → first
    production → atomic save → not immediately due → re-enter → targeted Review
    on Linux and Android against disposable local Supabase with an injected
@@ -1581,7 +1600,7 @@ merge-conflict cost outweighs parallelism. T8 and T9 follow the integrated tree.
   - Verify: all six phases preserve shell and subject position; every loading/empty/error/success/partial state is observable; persisted review/discovery instants produce localized visual and full semantic copy; local-midnight and lifecycle refreshes are deterministic; independent POS expansion, 20-sense flow, 640/760/960 boundaries, 200% text scale, Android IME, ordinary focus traversal, live regions, reduced motion, and 44px targets all behave as specified.
 - [ ] **T8 (P1, human: ~2.5 days / Codex: ~5h)** — Verification — Add the full layered suite and run both first-class targets.
   - Surfaced by: Test D15–D19, the mandatory due-state regression, and the design review's detailed interaction matrix.
-  - Files: unit/widget/adapter/database/two-client suites plus `integration_test/discovery_flow_test.dart` and SDK dev dependency.
+  - Files: unit/adapter/database/two-client suites, the seven section 29 phase/accessibility widget files, `integration_test/discovery_flow_test.dart`, and the Flutter SDK integration-test dev dependency.
   - Verify: all commands in section 29, deterministic Linux and Android Discovery spine, critical due-state regression, authored-work preservation, late-match interruption, meaning reveal/no-write behavior, relative timing at same-day/midnight/tomorrow/far-date/daylight-saving boundaries plus resume refresh, and full light/dark native visual QA across Entry, large Vocabulary results, Re-encounter, Production with IME, errors, and Discovered.
 - [ ] **T9 (P1, human: ~1 day / Codex: ~2h)** — Reliability/docs/rollout — Add privacy-safe diagnostics and update durable documentation; deploy only under separate approval.
   - Surfaced by: Error/rescue, observability, deployment, stale-diagram, and design-system alignment reviews.
