@@ -664,7 +664,8 @@ transaction, then return to their origin after completion or pause.
 RESTORING
   ├── authored v2 draft → furthest phase supported by durable fields ─┐
   ├── attempted submission → RECONCILING(frozen payload + same UUID)  │
-  ├── v1 / lookup-only draft → ENTRY(term + Discover again)           │
+  ├── authored v1 draft → migrate all authored fields + reconfirm     │
+  ├── v2 lookup-only draft → ENTRY(term + Discover again)             │
   ├── missing draft → ENTRY                                           │
   └── failed read → ENTRY + visible warning                           │
                                                                       ▼
@@ -698,6 +699,51 @@ cannot construct combinations such as re-encounter plus new-item saving.
 Term/type changes increment the request generation, invalidate derived
 completion, and preserve authored text. Provider sense lists are session-only;
 restoration never pretends that remote lookup output was persisted.
+
+### Durable authored draft contract
+
+`CaptureDraft` v2 persists only authored work and mutation checkpoints. Its
+minimum authored payload is:
+
+```text
+CaptureDraft v2
+├── draftRevision
+├── kind + content
+├── activeMeaning + activePartOfSpeech
+├── manualMeaningBuffer
+├── context + source + production
+├── meaningRevision
+├── meaningConfirmedRevision?
+├── productionConfirmedMeaningRevision?
+└── submission checkpoint? (prepared | attempted, UUID + frozen payload)
+```
+
+`meaningRevision` changes whenever the effective meaning, selected sense, or
+item type changes, including a type change that retains identical meaning text.
+Meaning is valid only when `meaningConfirmedRevision == meaningRevision`.
+Nonblank production is valid only when
+`productionConfirmedMeaningRevision == meaningRevision`; editing production or
+activating `This sentence still fits` stamps the current revision. Editing a
+meaning after a type change both creates and confirms the new meaning revision,
+while leaving any existing production stamped against the older revision.
+`Use this meaning` confirms the current meaning revision without altering text.
+
+Typing manual meaning updates both `manualMeaningBuffer` and the active meaning.
+Selecting a provider sense replaces only the active meaning/POS and never clears
+the manual buffer; returning to the manual path restores that buffer. Provider
+groups, row identity, copied-definition comparison, expansion state, reveal
+state, and a pending replacement prompt live only in the sealed active-session
+state. They are not serialized. After restart, a copied selected definition is
+still safe authored item content, but Capture does not claim that its provider
+row or remote lookup result was restored.
+
+The existing v1 decoder migrates every authored field rather than treating v1
+as lookup-only. A nonblank v1 meaning, context, source, and POS survive into v2;
+M1 marks the migrated meaning confirmation stale and has no production to
+confirm. Only drafts whose durable content is the term while all useful work was
+remote lookup state return to Entry and require Discover again. `draftRevision`
+also serializes debounced writes so an older pending snapshot cannot overwrite
+a newer authored snapshot.
 
 ## 21. Data flow with shadow paths
 
@@ -1365,8 +1411,8 @@ merge-conflict cost outweighs parallelism. T8 and T9 follow the integrated tree.
 - [ ] **T5 (P1, human: ~3 days / Codex: ~5h)** — State and drafts — Evolve `CaptureSessionController` into the sealed Discovery state family and migrate draft v1→v2.
   - Surfaced by: Architecture D3/D4/D7, Test D17/D18, and the design review's interaction-contract decisions.
   - Files: Capture draft/repository/controller/state and focused tests.
-  - Includes: generation guards, partial read states, authored-data restoration, manual/provider meaning-path preservation, edited-meaning replacement protection, late type/meaning/production reconfirmation, prepared/attempted submission checkpoints, frozen reconciliation payload, and upstream invalidation/reconfirmation.
-  - Verify: canonical state/event matrix, grouped expansion, manual/provider switching, edited-value replacement, another-sense escape, type reconfirmation, and the complete crash/restart matrix.
+  - Includes: the section 20 v2 authored payload and revision invariant, lossless v1 migration, generation guards, partial read states, manual/provider meaning-path preservation, session-only provider comparison/pending replacement state, late type/meaning/production reconfirmation, prepared/attempted submission checkpoints, frozen reconciliation payload, and upstream invalidation/reconfirmation.
+  - Verify: canonical state/event matrix, stale debounced-write rejection, v1 authored-field preservation, v2 confirmation restoration, grouped expansion, manual/provider switching, edited-value replacement, another-sense escape, type reconfirmation, and the complete crash/restart matrix.
 - [ ] **T6 (P1, human: ~1.5 days / Codex: ~2.5h)** — Review host — Give `LearningWorkspace` shared Review-session ownership and launch origin.
   - Surfaced by: Architecture D6 and Test D19.
   - Files: workspace, Today/Capture coordination, Review interaction tests.
