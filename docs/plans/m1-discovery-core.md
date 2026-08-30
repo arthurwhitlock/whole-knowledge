@@ -1,11 +1,11 @@
 # Whole Knowledge M1 — Discovery Core
 
-Status: CEO-reviewed specification
+Status: CEO- and engineering-reviewed specification
 
 Mode: Scope Reduction
 
-Approved approach: Focused Discovery vertical slice
-Date: 2026-08-29
+Approved approach: Focused Discovery vertical slice on the existing application seams
+Date: 2026-08-30
 
 ## 1. M1 product promise
 
@@ -38,6 +38,13 @@ invalid field above the viewport. A cosmetic relayout would not change the
 interaction. A generalized knowledge engine would make unvalidated evidence and
 visual metaphors load-bearing. The approved middle path is a complete Discovery
 slice.
+
+Engineering review preserved that product promise while reducing the
+implementation footprint. M1 evolves the existing Capture controller, draft
+repository, learning-item repository, workspace, and Review controller. It does
+not introduce a second state-management system, navigation stack, repository
+family, or generic wizard framework. Eighteen architecture, code-quality, test,
+and performance findings were resolved; none remain open.
 
 Landscape synthesis:
 
@@ -386,12 +393,13 @@ demand, and cost must be validated first.
 |---|---|
 | Native adaptive NavigationBar/NavigationRail | Preserve and restyle Capture prominence |
 | Stable IndexedStack destinations | Preserve Capture phase and draft state across navigation |
-| `CaptureSessionController` and durable file draft | Refactor into explicit Discovery state; retain repository and lifecycle behavior |
+| `CaptureSessionController` and durable file draft | Evolve in place into sealed immutable Discovery states; migrate the same draft seam to v2 |
 | Provider-neutral `LexicalProvider` | Extend to POS groups and optional examples |
-| Bounded EnglishDictionaryAPI adapter | Reuse timeout, body cap, request coalescing, attribution, and manual fallback |
+| Bounded EnglishDictionaryAPI adapter | Reuse request coalescing, attribution, and manual fallback; make its body cap and timeout genuinely end-to-end |
 | Flat `learning_items` with nullable POS | Retain one item per learned sense; add capture-origin production and idempotency fields |
 | Append-only `review_attempts` and `complete_review` | Reuse unchanged for Test myself; do not mix first production into scheduled attempts |
 | RLS and protected scheduling fields | Preserve; add one hardened Discovery transaction |
+| `LearningWorkspace` and Today-owned Review flow | Move Review-session ownership to the workspace so Today and Capture launch the same UI/transaction |
 | Today overview and real history | Refresh after save; do not add a duplicate M1 daily surface |
 | Quiet-luxury tokens, motion, and accessibility rules | Apply to progressive disclosure and completion |
 
@@ -404,11 +412,11 @@ Current style references:
 
 Anti-patterns to avoid:
 
-- extending the current 585-line Capture form into a thousand-line phase
-  controller;
+- extending the current 585-line Capture form into a thousand-line phase host;
 - flattening and globally truncating lexical senses;
 - adding widget-level Supabase or HTTP behavior;
-- inventing a generic wizard, graph, analytics platform, or dictionary cache.
+- inventing a generic wizard, Result framework, repository hierarchy, graph,
+  analytics platform, or dictionary cache.
 
 ## 19. System architecture
 
@@ -429,12 +437,12 @@ Presentation
                               ▼
 Application/domain
 ┌───────────────────────────────────────────────────────────────────────┐
-│ DiscoverySessionController (one immutable state machine)             │
+│ CaptureSessionController (evolved; one sealed immutable state family)│
 │ ├── CaptureDraftRepository                                           │
 │ ├── LexicalProvider                                                  │
 │ ├── LearningItemRepository.findActiveBySurfaceForm                   │
 │ ├── LearningItemRepository.completeDiscovery                         │
-│ └── existing ReviewSessionController for Test myself                 │
+│ └── DiscoverySubmission + DiscoveryFailure values                    │
 └───────────────────────────────────────────────────────────────────────┘
            │ local file          │ HTTP             │ repository
            ▼                     ▼                  ▼
@@ -454,14 +462,21 @@ Database
 No UI imports Supabase, reads provider JSON, owns schedule policy, or performs
 normalization queries directly.
 
+`LearningWorkspace` owns one `ReviewSessionController` and its launch origin.
+Today supplies its due queue; Capture supplies the single matched item selected
+for Test myself. Both origins use the same Review UI and `complete_review`
+transaction, then return to their origin after completion or pause.
+
 ## 20. Discovery state machine
 
 ```text
 RESTORING
-  ├── valid draft ───────────────────────────────────────┐
-  ├── missing draft → ENTRY                              │
-  └── failed read → ENTRY + visible warning             │
-                                                        ▼
+  ├── authored v2 draft → furthest phase supported by durable fields ─┐
+  ├── attempted submission → RECONCILING(frozen payload + same UUID)  │
+  ├── v1 / lookup-only draft → ENTRY(term + Discover again)           │
+  ├── missing draft → ENTRY                                           │
+  └── failed read → ENTRY + visible warning                           │
+                                                                      ▼
 ENTRY ── Discover ──▶ CHECKING(term, generation)
                          ├── matches → RE_ENCOUNTER
                          ├── Vocabulary lookup → VOCABULARY_SENSES
@@ -475,18 +490,23 @@ RE_ENCOUNTER ── Test myself → existing REVIEW    ├── complete → SA
 RE_ENCOUNTER ── Show meaning → REVEALED          └── finish later → SAVING
 
 SAVING
+  ├── prepare UUID + frozen payload → flush attempted marker → RPC
   ├── success/replay reconciliation → DISCOVERED
   ├── validation → prior phase + field error
-  ├── payload conflict → reconciliation error
-  └── unavailable → prior phase + retry same submission ID
+  ├── definitive pre-commit rejection → prior phase + new UUID allowed
+  ├── payload conflict → reconciliation error; never mutate frozen payload
+  └── unknown outcome → RECONCILING with same UUID and identical payload
 
 DISCOVERED ── Done → Today
            └─ Capture another → ENTRY
 ```
 
-Invalid transitions are ignored or rejected by the controller. Widgets cannot
-construct combinations such as re-encounter plus new-item saving. Term/type
-changes increment the request generation and invalidate derived completion.
+Each public controller command exhaustively switches over the sealed state
+family. Invalid transitions are ignored or rejected by the controller. Widgets
+cannot construct combinations such as re-encounter plus new-item saving.
+Term/type changes increment the request generation, invalidate derived
+completion, and preserve authored text. Provider sense lists are session-only;
+restoration never pretends that remote lookup output was persisted.
 
 ## 21. Data flow with shadow paths
 
@@ -515,17 +535,31 @@ transaction keyed by a stable client submission UUID.
 
 ## 22. Data and mutation design
 
-M1 keeps the flat learning-item model. One spelling may have several items when
-the learner explicitly chooses several senses.
+M1 keeps the flat learning-item model. One spelling may have several items only
+when the learner explicitly chooses Learn another sense.
 
 Additive database needs:
 
 - nullable capture-origin first-production text on `learning_items`;
 - a client-generated Discovery submission UUID with uniqueness scoped to owner;
-- a normalized exact-match query and matching index, without a uniqueness
-  constraint on content;
+- a stored generated `surface_match_key`, derived with the database copy of the
+  canonical normalizer;
+- a non-unique owner/key index limited to active rows; content itself is not
+  unique because one learner may intentionally learn several senses; shape the
+  index as `(user_id, surface_match_key, created_at desc, id) where status =
+  'active'` so the match query is covered and deterministically ordered;
 - `complete_discovery`, an authenticated idempotent transaction;
 - a later hardening migration that revokes legacy direct item insertion.
+
+The pure Dart normalizer and PostgreSQL expression must share data-driven parity
+fixtures covering case, surrounding/repeated whitespace, apostrophes, hyphens,
+punctuation, and Unicode cases admitted by M1. The database-generated key is
+authoritative for stored rows; clients do not write it.
+
+Dart validation supplies immediate field feedback; the RPC repeats all
+authoritative constraints before mutation. New M1-only database requirements
+are keyed to the Discovery submission marker so valid M0 rows remain readable
+and are not retroactively rejected or rewritten.
 
 `complete_discovery`:
 
@@ -533,19 +567,42 @@ Additive database needs:
 2. requires a non-null authenticated user;
 3. validates kind and all field lengths, requires content and meaning, and
    validates optional production;
-4. detects identical replay and returns the existing item;
+4. checks submission replay before duplicate-surface handling and returns the
+   existing item for an identical replay;
 5. rejects submission-ID reuse with different payload;
-6. sets initial scheduling to now or 24 hours according to production presence;
-7. leaves review and production counters at zero;
-8. uses an empty search path and fully qualified relations;
-9. grants execution only to authenticated callers.
+6. takes a transaction-level advisory lock derived from authenticated owner and
+   surface key, then rechecks active matches inside the lock;
+7. returns a typed existing-surface result unless `allowExistingSurface` came
+   from the explicit Learn another sense action;
+8. sets initial `next_review_at` to now or 24 hours according to production
+   presence and leaves review/production counters at zero;
+9. uses an empty search path and fully qualified relations;
+10. grants execution only to authenticated callers.
+
+`next_review_at` is the sole due-state authority. Domain predicates, Supabase
+queries, fakes, and tests must remove the current `review_count == 0` shortcut:
+a completed first production remains not due for 24 hours even with zero
+reviews, while a deferred item is due immediately because its timestamp is now.
+
+The old `CaptureLearningItem` / direct `create` path is replaced for Capture by
+one immutable `DiscoverySubmission` and
+`LearningItemRepository.completeDiscovery`. The value contains submission ID,
+kind, content, meaning/POS/details, optional production, and the explicit
+allow-existing intent. The existing repository boundary remains; no parallel
+Discovery repository is introduced.
 
 Repository contracts expose provider- and backend-neutral values. Presentation
 receives neither raw PostgREST failures nor database rows.
 
 ## 23. Error and rescue registry
 
-| Method/code path | Named failure | Rescued | Rescue action | User sees |
+All new Capture failures use one `DiscoveryFailure` value with a closed
+`DiscoveryFailureCode` enum plus privacy-safe metadata. Adapters map concrete
+filesystem, HTTP, and PostgREST causes into that value. Capture presentation
+owns one exhaustive code-to-copy/action mapping; no generic Result framework or
+exception hierarchy is introduced.
+
+| Method/code path | `DiscoveryFailureCode` | Rescued | Rescue action | User sees |
 |---|---|---:|---|---|
 | Draft read | `DraftReadFailure` | Yes | Start usable Entry; retain corrupt file for diagnostics | `Could not restore this draft` |
 | Draft decode | `DraftFormatInvalid` / `DraftVersionUnsupported` | Yes | Ignore unsafe state; start Entry | Restore warning, no crash |
@@ -565,9 +622,8 @@ receives neither raw PostgREST failures nor database rows.
 | Test myself item changed/deleted | `ReviewItemUnavailable` | Yes | Refresh match results; preserve Capture draft | Item no longer available |
 | Existing Review mutation | Existing typed repository failure | Yes | Preserve response and submission ID; retry/reload | Existing Review recovery |
 
-Adapters may catch concrete HTTP, filesystem, and PostgREST exceptions, but must
-map them to this closed application taxonomy. Widgets never catch `Object` or
-display raw exception strings.
+Existing Review failures retain their current repository type. Widgets never
+catch `Object` or display raw exception strings.
 
 ## 24. Error flow
 
@@ -578,7 +634,7 @@ External failure
 Infrastructure adapter identifies concrete cause
    │
    ▼
-Typed application failure
+DiscoveryFailure(code, metadata)
    ├── permanent input/data issue → correct or enter manually
    ├── transient read issue → preserve work + retry
    ├── ambiguous committed write → retry same submission ID
@@ -602,17 +658,23 @@ safe, gives a visible outcome, and has one named recovery.
 | Parallel reads | User changes term mid-flight | Yes | Unit + widget | New term state only | Metadata |
 | Library check | Provider succeeds, Library fails | Yes | Unit + widget | Discovery continues; save gated | Metadata |
 | Provider | Library succeeds, provider fails | Yes | Unit + widget | Manual meaning + Retry | Metadata |
+| Provider stream | Single/cumulative body exceeds 1 MiB | Yes | Unit | Abort before retaining excess bytes | Metadata |
+| Provider stream | Headers arrive but body stalls | Yes | Unit | End-to-end timeout aborts request | Metadata |
 | Sense list | 10–20 senses | Yes | Unit + widget | Two per POS + expansion | No |
 | Sense choice | Later POS hidden | Yes | Widget | Every POS heading visible | No |
 | Production | Sense changes after sentence | Yes | Unit + widget | Sentence preserved, unconfirmed | Metadata |
-| Draft | Process exits during phase | Yes | Repository + widget | Draft restores to valid phase | Metadata on failure |
+| Draft | Process exits before prepared write | Yes | Repository + unit | No RPC; authored state remains | Metadata on failure |
+| Draft | Process exits after attempted write | Yes | Repository + integration | Frozen same-ID reconciliation | Metadata |
 | Save | Repeated activation | Yes | Unit + integration | One in-flight mutation | Metadata |
 | Save | Server commits, response lost | Yes | pgTAP + integration | Retry reconciles one item | Metadata |
 | Save | Submission UUID reused with changed payload | Yes | pgTAP + integration | Conflict, no second row | Metadata |
+| Save | Two clients create same surface concurrently | Yes | pgTAP + two-client integration | One item + one typed existing result | Metadata |
+| Save | Explicit concurrent another-sense intent | Yes | pgTAP + integration | Additional sense allowed after lock | Metadata |
 | Scheduling | Production completed | Yes | Unit + pgTAP | First review in 24 hours | No |
 | Scheduling | Production deferred | Yes | Unit + pgTAP | Ready to practice now | No |
 | Re-encounter | Multiple learned senses | Yes | Repository + widget | All matching senses shown | No |
 | Re-encounter | Item disappears before Test myself | Yes | Unit + widget | Refresh/recovery message | Metadata |
+| Targeted Review | Complete or pause from Capture | Yes | Widget + integration | Return to Capture; draft preserved | No |
 | Security | Caller supplies another owner/protected state | Yes | pgTAP negative | Mutation rejected | Server metadata |
 | Rollout | M0 client after grant revocation | Yes by rollout | Smoke + runbook | Avoided by staged cutover | Deploy record |
 
@@ -626,7 +688,8 @@ Critical gaps after planned work: **0**.
 | Protected schedule/counter injection | Medium | Medium | No parameters/grants for protected fields |
 | Privileged-function object hijack | Low | High | Empty search path and fully qualified relations |
 | Submission replay with changed content | Low | Medium | Owner-scoped uniqueness plus payload mismatch conflict |
-| Oversized/blank/untrusted Unicode input | Medium | Medium | Dart usability checks plus authoritative SQL validation |
+| Oversized/blank/untrusted Unicode input | Medium | Medium | Pure Dart field validation plus authoritative SQL/RPC validation and parity fixtures |
+| Concurrent same-surface creation | Medium | Medium | Owner/key transaction advisory lock, replay-first ordering, match recheck |
 | Legacy direct-insert bypass | Medium during rollout | Medium | Two-phase cutover, then revoke direct insert |
 | Personal content in diagnostics | Medium | High | Metadata-only logs; never raw learner/provider content |
 
@@ -642,9 +705,15 @@ background job, command execution, storage bucket, or AI prompt surface.
 - Show stable progress within one animation frame; never block the UI thread.
 - Coalesce identical in-flight lexical requests.
 - Reuse a successful result only within the active Discovery draft.
-- Keep the existing 10-second provider timeout and 1 MiB streamed-body cap.
+- Enforce the 1 MiB cap before retaining each response chunk. Track cumulative
+  bytes and buffer with `BytesBuilder(copy: false)` before decoding.
+- Apply one 10-second deadline across request send and body consumption. Use
+  `AbortableRequest` so timeout aborts the underlying request; map both pre-header
+  and mid-stream abortion to the same typed timeout failure.
 - Add no persistent lexical cache and no shared dictionary table.
 - Use one indexed owner/surface match query; no per-result follow-up queries.
+  Verify its query plan against a realistic local fixture (at least 10,000 rows)
+  and fail the performance check if it falls back to an avoidable full scan.
 - Keep complete Discovery as one database round trip.
 - Ignore stale generations rather than allowing late results to repaint state.
 
@@ -678,44 +747,55 @@ The implementation updates a short troubleshooting runbook covering:
 ## 29. Test plan
 
 ```text
-UNIT
-├── every legal and invalid Discovery transition
-├── type suggestion and override
-├── upstream invalidation and reconfirmation
-├── parallel request generation and coalescing
-├── scheduling policy
-└── typed failure mapping
+CODE PATHS (58/58 specified)                         USER FLOWS
+[+] Controller: 28 paths                            [+] Discovery: 7 paths [→E2E]
+  ├── every state + public command                    ├── Vocabulary + production
+  ├── legal and invalid transitions                   ├── Expression + defer
+  ├── stale generations / partial reads               ├── Re-encounter three actions
+  ├── upstream invalidation / reconfirmation           └── restart + reconciliation
+  └── draft side effects / reconciliation            [+] Targeted Review: 5 paths
+[+] Adapters + database: 18 paths                     ├── complete / pause return
+  ├── provider status/decode/size/deadline             ├── stale/deleted match recovery
+  ├── normalizer parity / indexed match                ├── Show meaning writes nothing
+  ├── replay / conflict / validation                   └── Today origin unchanged
+  └── concurrency / ownership / scheduling
 
-ADAPTER
-├── multi-POS examples
-├── 404 / 429 / timeout / non-2xx
-├── malformed / empty / oversized provider body
-├── normalized match query
-└── row mapping for first production and replay metadata
-
-WIDGET
-├── every phase: loading / empty / error / success / partial
-├── narrow and wide layout
-├── keyboard, touch, focus, semantics, text scaling
-├── 20-sense progressive disclosure
-├── re-encounter choices
-├── production defer and reconfirmation
-└── reduced-motion completion
-
-DATABASE / INTEGRATION
-├── valid complete_discovery with and without production
-├── 24-hour versus immediate schedule
-├── identical replay and payload conflict
-├── cross-user and protected-field negative tests
-├── direct-grant cutover tests
-└── lost-response retry returns exactly one item
-
-RUNTIME
-├── Linux full Discovery journey
-├── Android full Discovery journey
-├── mobile keyboard/IME and back behavior
-└── desktop keyboard/focus and window resizing
+QUALITY TARGET: ★★★ behavior + edge + error for every path
+GAPS AFTER THIS PLAN: 0  |  E2E: deterministic full-app spine  |  EVAL: none
 ```
+
+Required test suites:
+
+1. **Canonical state/event unit matrix:** every public controller command in
+   every relevant state, including valid/invalid transitions, stale generations,
+   partial reads, upstream invalidation/reconfirmation, persistence side effects,
+   and pending reconciliation.
+2. **Draft v1→v2 and crash matrix:** missing/corrupt/unsupported drafts, prepared
+   UUID, attempted marker flushed before RPC, local write failure preventing RPC,
+   restart with frozen payload, identical replay, definitive rejection rotating
+   the UUID, success cleanup, and cleanup failure that never invites a duplicate.
+3. **Provider/adapter matrix:** multi-POS examples, 404/429/non-2xx, malformed or
+   empty bodies, one oversized chunk, cumulative overflow, stalled header/body,
+   request abortion, coalescing, and stale completion.
+4. **Database and real two-client suite:** validation/RLS/grants, Dart/SQL
+   normalization parity, query plan at 10,000 rows, simultaneous distinct first
+   submissions yielding one item plus one typed existing result, explicit another
+   sense, replay-before-duplicate ordering, other-owner isolation, and rollback
+   releasing the advisory lock.
+5. **Targeted Review interaction suite:** launch a non-due matched item, complete
+   or pause back to Capture with its draft intact, recover from stale/deleted
+   items, prove Show meaning writes no attempt, resume Learn another sense, and
+   keep the Today-origin due flow unchanged.
+6. **Deterministic full-app spine `[→E2E]`:** add the Flutter SDK
+   `integration_test` dependency and run new Vocabulary → intended sense → first
+   production → atomic save → not immediately due → re-enter → targeted Review
+   on Linux and Android against disposable local Supabase with an injected
+   deterministic lexical provider. Test the real external adapter separately.
+
+**Critical regression coverage:** replace the existing assumption that every
+zero-review item is due. At the domain, fake, repository, and database/integration
+layers, assert that a future `next_review_at` is not due and an immediate/past
+timestamp is due regardless of `review_count`.
 
 Required completion commands:
 
@@ -724,6 +804,8 @@ dart format .
 flutter analyze
 flutter test
 supabase test db
+flutter test integration_test/discovery_flow_test.dart -d linux
+# Run the same integration journey on the configured Android device/emulator.
 flutter build linux
 flutter build apk --debug
 ```
@@ -801,6 +883,8 @@ No destructive down migration or historical-data rewrite is required.
 - monetization, subscriptions, entitlements, or paywalls;
 - custom dictionary database or persistent lexical cache;
 - auth UI, offline sync engine, realtime sync, or new state/navigation framework;
+- generic Result/error framework, generic wizard/base phase hierarchy, new
+  repository family, or persisted provider-sense cache;
 - external recruitment or a new research process.
 
 ## 34. Dream-state delta
@@ -908,47 +992,105 @@ These thresholds are falsifiable signals, not growth metrics or release theater.
 - No source-code ASCII diagram becomes stale from this specification because no
   application code has changed.
 
+Implementation should place short inline ASCII comments only where the invariant
+is otherwise difficult to reconstruct:
+
+- beside the Capture state family/controller: authored state → derived lookup →
+  prepared/attempted mutation → reconciliation;
+- inside the `complete_discovery` migration: replay check → owner/key lock →
+  active-match recheck → validate → insert/return.
+
+The phase widgets and workspace routing are readable from types and should not
+duplicate the plan diagrams in source comments.
+
 ## 39. Implementation tasks
 
 Synthesized from this review. No task authorizes hosted deployment without the
 separate approvals named above.
 
-- [ ] **T1 (P1, human: ~1 day / Codex: ~2h)** — Domain — Extend provider-neutral lexical and learning-item values.
-  - Surfaced by: Architecture and sense-overload review.
-  - Files: `lib/application/capture/lexical_provider.dart`, `lib/domain/learning/learning_item.dart`, row mappers, focused tests.
-  - Verify: grouped POS/example fixtures, nullable first production, existing-row compatibility.
-- [ ] **T2 (P1, human: ~2 days / Codex: ~3h)** — Database — Add replay-safe Discovery schema, exact-match support, and `complete_discovery`.
-  - Surfaced by: Architecture, security, and rollout reviews.
-  - Files: new forward migrations, `supabase/tests/database/learning_loop_test.sql`.
-  - Verify: local reset, pgTAP ownership/grant/validation/replay/conflict/scheduling tests.
-- [ ] **T3 (P1, human: ~2 days / Codex: ~3h)** — Repositories — Add normalized re-encounter lookup and typed Discovery mutation mapping.
-  - Surfaced by: Re-encounter and error/rescue reviews.
-  - Files: learning repository contract, Supabase adapter, fakes, mapper/repository tests.
-  - Verify: all matching senses, no stemming, typed failures, identical retry.
-- [ ] **T4 (P1, human: ~3 days / Codex: ~5h)** — State — Refactor Capture into one immutable Discovery state machine while retaining durable drafts.
-  - Surfaced by: Architecture and interaction review.
-  - Files: Capture draft/state/controller and unit tests.
-  - Verify: complete transition table, stale generations, partial reads, reconfirmation, restart, retry.
-- [ ] **T5 (P1, human: ~3 days / Codex: ~6h)** — Presentation — Build focused Entry, Vocabulary, Expression, Re-encounter, Production, and Discovered phases.
-  - Surfaced by: Code quality and Design review.
-  - Files: `CaptureScreen` plus focused presentation widgets and widget tests.
-  - Verify: narrow/wide states, 20-sense flow, manual fallback, completion, accessibility, reduced motion.
-- [ ] **T6 (P1, human: ~1 day / Codex: ~2h)** — Navigation/Review — Style native Capture prominence and route Test myself through existing Review.
-  - Surfaced by: Navigation-role and evidence decisions.
-  - Files: `learning_workspace.dart`, Today/Review integration tests, theme tokens only if a semantic token is missing.
-  - Verify: mobile/desktop navigation semantics, non-due item Review, Show meaning causes no write.
-- [ ] **T7 (P1, human: ~1 day / Codex: ~2h)** — Reliability — Add typed failure mapping, metadata diagnostics, and troubleshooting runbook.
-  - Surfaced by: Error, security, and observability reviews.
-  - Files: provider/adapter/controller boundaries, documentation, failure tests.
-  - Verify: every registry row has stable copy, recovery, test, and content-free diagnostics.
-- [ ] **T8 (P1, human: ~2 days / Codex: ~4h)** — Verification — Complete layered tests and both target builds.
-  - Surfaced by: Test review.
-  - Files: unit, widget, infrastructure, database, and local integration suites.
-  - Verify: `dart format .`, `flutter analyze`, `flutter test`, `supabase test db`, `flutter build linux`, `flutter build apk --debug`.
-- [ ] **T9 (P1, human: ~1 day / Codex: ~2h)** — Rollout/docs — Update durable design/architecture docs and execute the approved two-phase rollout only with separate hosted approval.
-  - Surfaced by: Deployment and stale-diagram reviews.
-  - Files: `DESIGN.md`, `docs/architecture.md`, `README.md`, forward hardening migration.
-  - Verify: diagrams current, both live smoke journeys pass before direct insert is revoked.
+Dependency and worktree strategy:
+
+| Step | Modules touched | Depends on |
+|---|---|---|
+| T1 Contracts | `lib/application/capture/`, `lib/domain/learning/` | — |
+| T2 Database | `supabase/migrations/`, `supabase/tests/` | T1 contract settled |
+| T3 Repository | `lib/application/learning/`, `lib/infrastructure/supabase/`, `test/support/` | T1, T2 |
+| T4 Provider | `lib/application/capture/`, `lib/infrastructure/dictionary/` | T1 |
+| T5 State/draft | `lib/application/capture/`, draft infrastructure, focused tests | T1, T3, T4 |
+| T6 Review host | `lib/presentation/learning/`, `lib/application/review/` | T1, T5 |
+| T7 Presentation | `lib/presentation/learning/capture/`, widget tests | T5, T6 |
+| T8 Verification | all test layers, `integration_test/` | T2–T7 |
+| T9 Docs/rollout | documentation, forward migration | T8 |
+
+```text
+T1 contracts
+ ├──▶ T2 database ──▶ T3 repository ──┐
+ └──▶ T4 provider ────────────────────┼──▶ T5 state/draft ──▶ T6 Review host
+                                      │                         │
+                                      └─────────────────────────┴──▶ T7 UI
+                                                                    │
+                                                                    ▼
+                                                               T8 verification
+                                                                    │
+                                                                    ▼
+                                                               T9 docs/rollout
+```
+
+After T1 lands, T2–T3 may use one database/repository worktree while T4 uses one
+provider worktree. T5–T7 intentionally return to a single integration lane
+because they share Capture state, workspace ownership, and widget fixtures; the
+merge-conflict cost outweighs parallelism. T8 and T9 follow the integrated tree.
+
+- Lane A: T2 → T3 (sequential; shared database/repository contract).
+- Lane B: T4 (independent provider adapter after T1).
+- Integration lane: merge A + B, then T5 → T6 → T7 → T8 → T9.
+- Conflict flag: T1 and T4 both touch `lib/application/capture/`; land T1 before
+  creating the provider worktree. No other lanes should edit that module in
+  parallel.
+
+- [ ] **T1 (P1, human: ~1.5 days / Codex: ~2.5h)** — Contracts — Define the smallest provider-neutral Discovery contract.
+  - Surfaced by: Architecture D2/D7 and Code quality D10/D11/D13.
+  - Files: Capture application values, lexical values, `LearningItem` due predicate, focused tests.
+  - Includes: immutable `DiscoverySubmission`, `DiscoveryFailure` + closed code enum, pure field validator, canonical Dart surface normalizer, grouped POS/senses/examples.
+  - Verify: exhaustive failure mapping, validation boundaries, normalization fixtures, future-zero-review item is not due.
+- [ ] **T2 (P1, human: ~2.5 days / Codex: ~4h)** — Database — Add replay-safe schema, indexed matching, scheduling truth, and `complete_discovery`.
+  - Surfaced by: Architecture D2/D5/D8 and Test D16.
+  - Files: forward migrations and `supabase/tests/database/learning_loop_test.sql`.
+  - Includes: first production, owner-scoped submission key, generated surface key, active partial index, replay-first RPC, advisory lock, explicit another-sense intent, grants/RLS.
+  - Verify: pgTAP validation/ownership/replay/conflict/scheduling/concurrency, normalizer parity, 10,000-row query plan, rollback releases lock.
+- [ ] **T3 (P1, human: ~2 days / Codex: ~3h)** — Repository — Replace Capture direct insert with exact-match and atomic Discovery operations.
+  - Surfaced by: Architecture D5/D8 and Code quality D10/D13.
+  - Files: learning repository contract, Supabase adapter, row mappers, fakes, repository/integration tests.
+  - Includes: `findActiveBySurfaceForm`, `completeDiscovery`, typed existing/replay/failure mapping, sole timestamp due query.
+  - Verify: every matching sense, owner isolation, no stemming, identical retry, no `review_count == 0` due shortcut.
+- [ ] **T4 (P1, human: ~1.5 days / Codex: ~2.5h)** — Provider — Harden and enrich the existing EnglishDictionaryAPI adapter.
+  - Surfaced by: Performance D21/D22 and the existing global sense-cap path.
+  - Files: lexical provider contract/adapter and fixtures.
+  - Includes: grouped POS output, no global 12-sense truncation, pre-allocation 1 MiB cap, `BytesBuilder`, end-to-end aborting deadline, existing coalescing/attribution.
+  - Verify: multi-POS 20-sense payload, one-chunk and cumulative overflow, stalled header/body, 404/429/non-2xx/malformed/empty response.
+- [ ] **T5 (P1, human: ~3 days / Codex: ~5h)** — State and drafts — Evolve `CaptureSessionController` into the sealed Discovery state family and migrate draft v1→v2.
+  - Surfaced by: Architecture D3/D4/D7 and Test D17/D18.
+  - Files: Capture draft/repository/controller/state and focused tests.
+  - Includes: generation guards, partial read states, authored-data restoration, prepared/attempted submission checkpoints, frozen reconciliation payload, upstream invalidation/reconfirmation.
+  - Verify: canonical 28-path state/event matrix and complete crash/restart matrix.
+- [ ] **T6 (P1, human: ~1.5 days / Codex: ~2.5h)** — Review host — Give `LearningWorkspace` shared Review-session ownership and launch origin.
+  - Surfaced by: Architecture D6 and Test D19.
+  - Files: workspace, Today/Capture coordination, Review interaction tests.
+  - Includes: due queue from Today, targeted one-item queue from Capture, return-to-origin behavior, stale/deleted-item recovery.
+  - Verify: complete/pause preserves Capture draft, Show meaning writes nothing, Today flow remains unchanged.
+- [ ] **T7 (P1, human: ~3 days / Codex: ~6h)** — Presentation — Split Capture into focused phase widgets without a new UI framework.
+  - Surfaced by: Code quality D10/D12 and the CEO-approved phase flow.
+  - Files: thin `capture_screen.dart` plus `presentation/learning/capture/` Entry, Senses/Meaning, Re-encounter, Production, Discovered, and shared widgets.
+  - Includes: exhaustive state rendering and failure copy/actions, adaptive layout, semantics, focus, keyboard/touch/IME, reduced motion.
+  - Verify: every phase and partial/error state, independent POS expansion, 20-sense flow, narrow/wide/text-scale coverage.
+- [ ] **T8 (P1, human: ~2.5 days / Codex: ~5h)** — Verification — Add the full layered suite and run both first-class targets.
+  - Surfaced by: Test D15–D19 and the mandatory due-state regression.
+  - Files: unit/widget/adapter/database/two-client suites plus `integration_test/discovery_flow_test.dart` and SDK dev dependency.
+  - Verify: all commands in section 29, deterministic Linux and Android Discovery spine, critical due-state regression.
+- [ ] **T9 (P1, human: ~1 day / Codex: ~2h)** — Reliability/docs/rollout — Add privacy-safe diagnostics and update durable documentation; deploy only under separate approval.
+  - Surfaced by: Error/rescue, observability, deployment, and stale-diagram reviews.
+  - Files: failure boundaries, troubleshooting runbook, `DESIGN.md`, `docs/architecture.md`, `README.md`, later grant-hardening migration.
+  - Verify: every registry row has stable recovery/copy/test, diagrams are current, and both approved live smoke journeys pass before direct insert is revoked.
 
 ## 40. Deferred work
 
@@ -961,4 +1103,25 @@ Accepted follow-ups are recorded in `TODOS.md`:
 5. P3 multilingual identity and provider routing.
 6. P3 deeper knowledge exploration and future Pro boundary.
 
-No unresolved product or architecture decisions remain in this specification.
+The engineering review found no additional deferred-work candidate worth adding
+to `TODOS.md`; the six CEO-approved follow-ups remain unchanged. No unresolved
+product or architecture decisions remain in this specification.
+
+## GSTACK REVIEW REPORT
+
+| Review area | Result |
+|---|---|
+| Scope | Reduced architecture footprint; full Discovery product loop preserved |
+| Architecture | 7 findings resolved: existing seams, due-state truth, durable reconciliation, generated match key, shared Review ownership, sealed states, concurrent duplicate guard |
+| Code quality | 4 findings resolved: one failure value, boundary validation parity, focused phase widgets, one Discovery submission contract |
+| Tests | 5 gaps resolved in the plan; 58/58 behavioral paths specified, including deterministic Linux/Android E2E and real two-client database concurrency |
+| Performance | 2 findings resolved: pre-allocation body cap and aborting end-to-end deadline; no N+1 or cache requirement |
+| Security/deployment | Auth-derived ownership, RLS, hardened RPC, staged grant cutover, forward-only rollback |
+| Existing-system reuse | Capture, drafts, lexical provider, learning repository, workspace, Review transaction, adaptive shell, and design tokens are evolved rather than replaced |
+| Outside voice | Skipped; no sub-agent delegation was requested or authorized |
+| New TODO candidates | 0; existing CEO-approved deferred items retained |
+| Application implementation | Not started; this review changed the plan and local review artifacts only |
+
+Final readiness: **CLEAR TO IMPLEMENT AFTER THE NEXT EXPLICIT IMPLEMENTATION REQUEST.**
+
+NO UNRESOLVED DECISIONS
