@@ -102,6 +102,43 @@ Desktop uses the same destination and capability through the native
 `NavigationRail`. A narrow accent marker and stronger icon/label treatment
 provide prominence; the mobile center shape is not copied literally.
 
+### Shared phase composition
+
+Capture remains one centered, phase-replacing document on every supported
+width. It uses 16px horizontal padding below 640px, 24px above it, and the
+existing 720px form maximum. Desktop does not split Capture into side-by-side
+context and task panes, and no persistent wizard rail or step counter is added.
+
+```text
+Capture destination
+└── focused document · max 720px
+    ├── orientation       Capture + Back after Entry
+    ├── subject           encountered language + visible type override
+    ├── active task       one phase heading and one concise prompt
+    ├── working content   choices, input, or learned-sense rows
+    ├── supporting detail Add encounter details disclosure, when relevant
+    ├── recovery/status   adjacent to the content it affects
+    └── actions           one primary action + restrained secondary escape
+```
+
+The first three scan targets in each phase are fixed:
+
+| Phase | First | Second | Third |
+|---|---|---|---|
+| Entry | `What did you encounter?` | Language input with visible type suggestion | `Discover` |
+| Vocabulary Discovery | Encountered term and Vocabulary override | POS-grouped intended-sense choices plus manual meaning | Continue to production |
+| Expression Meaning | Encountered expression and Expression override | `What does it mean here?` and the meaning input | Continue to production |
+| Re-encounter | Encountered term and `Already in your knowledge` | All exact learned-sense rows | Sense-scoped `Test myself`, `Show meaning`, or `Learn another sense` |
+| Production | Term, selected meaning, and POS when present | Original-sentence prompt and editor | `Complete discovery`, then `Save and finish later` |
+| Discovered | `Discovered` outcome | Saved term, meaning, production, and truthful review timing | `Done`, then `Capture another` |
+
+Entry has no in-flow Back action. Later authored phases show a quiet top-leading
+Back action that returns to the preceding editable phase without discarding the
+draft. Saving and reconciliation temporarily disable Back because the frozen
+submission must not change. Discovered replaces Back with its two terminal
+actions. Phase transitions replace only the active document body, retain the
+shell and subject position, and move focus to the first meaningful control.
+
 Initial surface:
 
 ```text
