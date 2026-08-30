@@ -148,7 +148,8 @@ What did you encounter?
 
 [ improbable                                  ]
 
-English discovery                       Discover →
+Vocabulary suggested                        Use Expression
+                                             Discover →
 Enter meaning manually
 ```
 
@@ -156,6 +157,16 @@ Rules:
 
 - No meaning, POS, context, source, filters, statistics, or recent list appears
   initially.
+- The type line sits directly beneath the language input. Automatic inference
+  renders `Vocabulary suggested` plus `Use Expression`, or `Expression
+  suggested` plus `Use Vocabulary discovery`. After a manual override, remove
+  the word `suggested`, retain the chosen type, and show the direct reverse
+  action. Do not add a segmented selector, dropdown, or overflow menu.
+- The type status is named semantically and the change action includes both its
+  destination and consequence. It is reachable immediately after the language
+  input in focus order.
+- `Enter meaning manually` keeps the current type, skips only the dictionary
+  lookup, and still performs the exact Library check before new-item creation.
 - Empty or whitespace-only submission shows one inline live-region error and
   retains focus.
 - Enter/submit and the button invoke the same coalesced transition.
@@ -480,7 +491,7 @@ anatomy proven by these phases.
 | Focused document | `SingleChildScrollView`, centered `ConstrainedBox`, `FocusTraversalGroup` | `formMaxWidth`, 16/24px page padding, background surface; no enclosing decorative card |
 | Orientation and subject | `ShadTextTheme` page/feature/label/meta roles | One page title, stable term/type subject, quiet top-leading ghost Back action after Entry |
 | Language, meaning, production | Existing `ShadInput` / `ShadTextarea` plus compact editing context menu | Visible labels, semantic required state, existing control radius and input/focus tokens |
-| Type suggestion/override | Existing regular and outline `ShadButton` variants | Two plainly labeled choices; compact grouping without pill styling or a custom segmented-control package |
+| Type suggestion/override | Label/meta typography plus `ShadButton.ghost` | Plain current/suggested status plus one direct reversal action; no segmented selector, dropdown, pill styling, or custom package |
 | Sense choice | Semantic button/selected wrapper plus existing ink/focus behavior | Divider-separated editorial row specified in section 7; no `ShadCard` per sense |
 | POS group and expansion | Label/meta typography plus `ShadButton.ghost` | Heading owns its senses; `Show N more` stays left-aligned and exposes expanded state semantically |
 | Encounter-details disclosure | `ShadButton.ghost`, `AnimatedSize`, `AnimatedSwitcher` | Secondary, visible, and in flow; revealed fields reuse existing controls and structural motion |
@@ -980,7 +991,8 @@ Focus and semantics:
   with no hidden shortcut required.
 - Sense rows expose button and selected state; Space/Enter activates them.
   `Show N more` exposes expanded/collapsed state and retains logical focus on
-  activation. Type override exposes one selected choice in a named group.
+  activation. Type status names the current choice and whether it was suggested;
+  the adjacent change action names the alternate type.
 - Errors are announced once when they appear, remain visible beside the affected
   control, and do not steal focus repeatedly during rebuilds. Progress labels
   announce meaningful state changes only.
