@@ -312,6 +312,24 @@ Show meaning
 Learn another sense
 ```
 
+Learned senses use the same editorial-row grammar as Discovery without implying
+that provider results and owned items are interchangeable. A sole active match
+is selected automatically. With multiple matches, no row is preselected; the
+learner chooses one definition before any item action appears. Selection uses
+accent-subtle fill, the narrow accent marker, semantic selected state, and
+retains the visible `Last reviewed` fact.
+
+One shared action group follows the selected sense instead of repeating controls
+inside every row:
+
+1. `Test myself` is the primary action.
+2. `Show meaning` is the secondary outline action.
+3. `Learn another sense` is the tertiary ghost action.
+
+Changing the selected row updates that one action group in place and writes no
+evidence. Keyboard focus moves from a selected row forward into the action group
+through ordinary traversal; selection itself does not unexpectedly move focus.
+
 When several items match, the learner first chooses the known sense. Then:
 
 - **Test myself** launches the existing full Review flow for that item even when
@@ -1014,7 +1032,7 @@ shown independently so one slow or failed service does not hide usable results.
 | Entry parallel reads | Keep term/type orientation visible; show separate `Checking your Library` and `Finding English meanings` rows in the future content positions | No exact match continues to the correct Vocabulary or Expression task | Each failed row keeps an adjacent Retry; Library failure gates creation, while lookup failure exposes manual meaning | Exact matches open Re-encounter; otherwise grouped senses or manual Expression meaning replaces progress in place | A completed result becomes usable immediately while the unresolved row remains visibly pending |
 | Vocabulary senses | Preserve already returned POS groups while a retried lookup is pending | `No English entry found` followed by the visible manual-meaning editor | Provider-specific stable copy, Retry, and manual meaning remain together | All POS headings, two senses per group, selection, examples, and per-group expansion | If Library is unresolved, selection and authored work continue but final creation remains gated |
 | Expression meaning | No remote lookup; draft-write activity does not replace the editor | Blank editor with visible required label and concise prompt | Field error stays below the editor and receives focus on submission | Valid authored meaning reveals the Production action | Library-pending or failed status remains visible without disabling meaning entry |
-| Re-encounter | Keep subject and any returned learned-sense rows while refreshing a stale match | Explain that the item is no longer available, then return to Discovery with the draft intact | Inline retry or session-recovery action adjacent to the failed sense | One or more learned-sense rows with sense-scoped actions | A late exact match interrupts new-item completion with `Already in your knowledge`; authored meaning and production stay in the draft and resume if `Learn another sense` is chosen |
+| Re-encounter | Keep subject and any returned learned-sense rows while refreshing a stale match | Explain that the item is no longer available, then return to Discovery with the draft intact | Inline retry or session-recovery action adjacent to the failed sense | One or more learned-sense rows plus one shared selected-sense action group | A late exact match interrupts new-item completion with `Already in your knowledge`; authored meaning and production stay in the draft and resume if `Learn another sense` is chosen |
 | Production | No remote loading; local draft security status stays adjacent without covering the editor | Empty required editor on the primary path; defer remains visible and secondary | Validation or draft-write failure preserves the sentence, focuses the affected control, and offers Retry | Confirmed original sentence enables `Complete discovery` | A changed meaning preserves the sentence but marks it unconfirmed until edited or explicitly reconfirmed |
 | Save and reconciliation | Freeze controls and payload; primary action says `Saving` or `Confirming discovery` with restrained progress | — | Definitive validation returns to the named field; unknown outcome keeps same-ID Retry; payload conflict stops blind retry | Transition once to Discovered after new save or identical replay reconciliation | Library-check gating explains why save is unavailable and places Retry beside that status |
 | Discovered | — | — | Cleanup failure never implies save failure or offers duplicate submission | Announced confirmation with saved content, truthful review timing, `Done`, and `Capture another` | Deferred production substitutes `Ready to practice now` and omits an empty quotation block |
