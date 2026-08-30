@@ -128,7 +128,7 @@ The first three scan targets in each phase are fixed:
 | Entry | `What did you encounter?` | Language input with visible type suggestion | `Discover` |
 | Vocabulary Discovery | Encountered term and Vocabulary override | POS-grouped intended-sense choices plus manual meaning | Continue to production |
 | Expression Meaning | Encountered expression and Expression override | `What does it mean here?` and the meaning input | Continue to production |
-| Re-encounter | Encountered term and `Already in your knowledge` | All exact learned-sense rows | Sense-scoped `Test myself`, `Show meaning`, or `Learn another sense` |
+| Re-encounter | Encountered term and `Already in your knowledge` | All exact learned-sense rows | List-level `Learn another sense`, plus selected-item `Test myself` and `Show meaning` |
 | Production | Term, selected meaning, and POS when present | Original-sentence prompt and editor | `Complete discovery`, then `Save and finish later` |
 | Discovered | `Discovered` outcome | Saved term, meaning, production, and truthful review timing | `Done`, then `Capture another` |
 
@@ -343,15 +343,16 @@ Learn another sense
 Learned senses use the same editorial-row grammar as Discovery without implying
 that provider results and owned items are interchangeable. A sole active match
 is selected automatically. With multiple matches, no row is preselected; the
-learner chooses one cue row before any item action appears. Before reveal, a row
-shows POS, available captured context or source, capture date, and last-review
-fact—but never the saved meaning or first production. Selection uses
+learner chooses one cue row before any item-specific action appears. Before
+reveal, a row shows POS, available captured context or source, capture date, and
+last-review fact—but never the saved meaning or first production. Selection uses
 accent-subtle fill, the narrow accent marker, semantic selected state, and
 retains those cues. Sparse legacy items use a neutral `Captured <date>` cue;
 they never invent or expose a meaning preview merely to differentiate rows.
 
-One shared action group follows the selected sense instead of repeating controls
-inside every row:
+One shared action group follows the match list instead of repeating controls
+inside every row. Before selection it contains only the surface-level tertiary
+action `Learn another sense`. After selection it contains:
 
 1. `Test myself` is the primary action.
 2. `Show meaning` is the secondary outline action.
@@ -360,6 +361,8 @@ inside every row:
 Changing the selected row updates that one action group in place and writes no
 evidence. Keyboard focus moves from a selected row forward into the action group
 through ordinary traversal; selection itself does not unexpectedly move focus.
+`Learn another sense` never requires choosing an unrelated existing item because
+its allow-existing intent applies to the surface form, not to one learned sense.
 
 `Show meaning` expands one inline detail region after the shared action group.
 It moves focus to a `Meaning` heading and shows the selected saved meaning,
@@ -371,7 +374,9 @@ Choosing `Test myself` before reveal therefore starts a clean retrieval. Choosin
 it after reveal remains allowed but accurately follows a learner-requested
 reference action rather than pretending the answer was not seen.
 
-When several items match, the learner first chooses the known sense. Then:
+When several items match, `Learn another sense` remains available immediately.
+After the learner chooses a known sense, the item-specific actions become
+available:
 
 - **Test myself** launches the existing full Review flow for that item even when
   it is not currently due. A successful rated Review writes the existing
