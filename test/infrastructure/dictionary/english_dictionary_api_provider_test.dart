@@ -1,7 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:whole_knowledge/application/capture/lexical_provider.dart';
+import 'package:whole_knowledge/application/capture/discovery_failure.dart';
 import 'package:whole_knowledge/infrastructure/dictionary/english_dictionary_api_provider.dart';
 
 void main() {
@@ -13,7 +15,7 @@ void main() {
           expect(request.url.path, '/api/v1/words/record');
           return http.Response(
             '{"partsOfSpeech":['
-            '{"partOfSpeech":"noun","senses":[{"definition":"A stored account."}]},'
+            '{"partOfSpeech":"noun","senses":[{"definition":"A stored account.","examples":[{"text":"Keep a record."}]}]},'
             '{"partOfSpeech":"verb","senses":[{"definition":"To preserve information."}]}'
             ']}',
             200,
@@ -25,7 +27,9 @@ void main() {
 
       expect(result.senses, hasLength(2));
       expect(result.senses.first.partOfSpeech, 'noun');
+      expect(result.senses.first.example, 'Keep a record.');
       expect(result.senses.last.partOfSpeech, 'verb');
+      expect(result.groups.map((group) => group.name), ['noun', 'verb']);
     },
   );
 
@@ -37,10 +41,60 @@ void main() {
     expect(
       provider.lookup('notaword'),
       throwsA(
-        isA<LexicalLookupException>().having(
-          (error) => error.message,
-          'message',
-          contains('manually'),
+        isA<DiscoveryFailure>().having(
+          (error) => error.code,
+          'code',
+          DiscoveryFailureCode.lexicalEntryNotFound,
+        ),
+      ),
+    );
+  });
+
+  test('coalesces identical in-flight lookups', () async {
+    final completer = Completer<http.Response>();
+    final provider = EnglishDictionaryApiProvider(
+      client: MockClient((_) => completer.future),
+    );
+
+    final first = provider.lookup('Record');
+    final second = provider.lookup(' record ');
+    completer.complete(
+      http.Response(
+        '{"partsOfSpeech":[{"partOfSpeech":"noun","senses":'
+        '[{"definition":"A stored account."}]}]}',
+        200,
+      ),
+    );
+
+    expect(identical(first, second), isTrue);
+    expect((await first).senses, hasLength(1));
+  });
+
+  test('maps rate limits and malformed payloads to typed failures', () async {
+    final rateLimited = EnglishDictionaryApiProvider(
+      client: MockClient((_) async => http.Response('', 429)),
+    );
+    final malformed = EnglishDictionaryApiProvider(
+      client: MockClient((_) async => http.Response('{bad', 200)),
+    );
+
+    await expectLater(
+      rateLimited.lookup('record'),
+      throwsA(
+        isA<DiscoveryFailure>().having(
+          (error) => error.code,
+          'code',
+          DiscoveryFailureCode.lexicalRateLimited,
+        ),
+      ),
+    );
+    await expectLater(
+      malformed.lookup('record'),
+      throwsA(
+        isA<DiscoveryFailure>().having(
+          (error) => error.code,
+          'code',
+          DiscoveryFailureCode.lexicalPayloadInvalid,
         ),
       ),
     );

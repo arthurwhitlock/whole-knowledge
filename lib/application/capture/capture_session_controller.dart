@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:whole_knowledge/application/capture/capture_draft.dart';
+import 'package:whole_knowledge/application/capture/discovery_failure.dart';
 import 'package:whole_knowledge/application/capture/lexical_provider.dart';
 import 'package:whole_knowledge/application/learning/capture_learning_item.dart';
 import 'package:whole_knowledge/application/learning/learning_item_repository.dart';
@@ -81,8 +82,20 @@ final class CaptureSessionController {
     _notify();
     try {
       lookup = await _lexicalProvider.lookup(draft.content);
-    } on LexicalLookupException catch (error) {
-      lookupError = error.message;
+    } on DiscoveryFailure catch (error) {
+      lookupError = switch (error.code) {
+        DiscoveryFailureCode.lexicalEntryNotFound =>
+          'No English entry found. Add a meaning manually.',
+        DiscoveryFailureCode.lexicalRateLimited =>
+          'English lookup is busy. Retry later or add a meaning manually.',
+        DiscoveryFailureCode.lexicalTimedOut =>
+          'English lookup timed out. Retry or add a meaning manually.',
+        DiscoveryFailureCode.lexicalPayloadInvalid =>
+          'The English lookup returned an unreadable entry. Add it manually.',
+        DiscoveryFailureCode.lexicalResponseTooLarge =>
+          'The lookup response was too large. Add a meaning manually.',
+        _ => 'English lookup is unavailable. Add a meaning manually.',
+      };
     } on Object {
       lookupError = 'English lookup is unavailable. Add a meaning manually.';
     } finally {
