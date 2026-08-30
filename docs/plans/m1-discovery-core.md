@@ -1728,6 +1728,83 @@ deployment.
 **Design verdict:** design-complete with 0 unresolved decisions. Run
 `/design-review` after implementation for native visual QA.
 
+## 42. Post-design engineering re-review outcome
+
+This pass re-ran `/plan-eng-review` because the detailed design interactions in
+section 41 postdated the earlier architecture review. It changed this plan and
+local gstack artifacts only; no application, database, dependency, or hosted
+state was implemented.
+
+| Decision | Accepted outcome | Parent task(s) |
+|---|---|---|
+| D1 execution shape | Preserve the full M1 behavior and fold DT1–DT5 into the existing engineering graph | T5, T7–T9 |
+| D2 authored draft truth | Persist manual buffer, production, and revision-stamped meaning/production confirmations; keep provider UI state session-only | T5 |
+| D3 review cue truth | Add protected nullable `last_reviewed_at`, written by `complete_review` and projected in the one exact-match read | T1–T3 |
+| D4 runtime state shape | Seal workflow phases and compose narrow phase-local immutable state instead of subclasses for every combination or mutable booleans | T5 |
+| D5 Review ownership | Extract one workspace-owned controller/origin/focus view shared by Today and Capture | T6 |
+| D6 relative-time ownership | Use one pure localized formatter and one UI-only Capture midnight/resume tick | T7–T8 |
+| D7 file responsibilities | Keep controller, state, draft, submission, failure, validation, and provider responsibilities in focused files | T1, T5, T7 |
+| D8 controller/draft tests | Replace the stale 58/58 claim with 80 named semantic cases plus generated invalid command/phase rows | T5, T8 |
+| D9 widget/accessibility tests | Add seven focused phase, adaptive-access, and shared-host widget suites | T7–T8 |
+| D10 end-to-end tests | Run three isolated deterministic journeys on Linux and Android | T8 |
+
+### Re-review test coverage diagram
+
+```text
+APPLICATION
+├── Capture controller/draft: 80 named semantic cases
+│   └── plus every generated invalid public-command/phase pair
+├── Provider/repository/database: bounded protocol, parity, security,
+│   replay, concurrency, schedule, and one-read cue contracts
+└── Shared Review host: due + targeted origin, pause/resume, reconciliation
+
+PRESENTATION
+├── 7 focused widget/accessibility suites
+├── 3 deterministic full-app journeys on Linux
+└── the same 3 deterministic journeys on Android
+
+NATIVE VISUAL QA
+└── light/dark Entry, large results, Re-encounter, Production + IME,
+    errors, and Discovered on both first-class targets
+
+QUALITY: behavior + edge + error for every applicable named path
+CRITICAL GAPS AFTER PLAN: 0    EVAL: none
+```
+
+Test-plan artifact:
+`~/.gstack/projects/arthurwhitlock-whole-knowledge/arthurwhitlock-master-eng-review-test-plan-20260830-180451.md`.
+The eng-review task artifact contains five actionable slices folded into T1–T8
+rather than a duplicate task graph:
+`~/.gstack/projects/arthurwhitlock-whole-knowledge/tasks-eng-review-20260830-180451.jsonl`.
+
+### Re-review completion summary
+
+- Step 0 Scope Challenge: full product scope retained; duplicate DT execution
+  stream removed.
+- Architecture Review: 4 issues found and resolved.
+- Code Quality Review: 2 issues found and resolved.
+- Test Review: diagram produced; 3 gaps found and resolved.
+- Performance Review: 0 issues; one indexed match read, bounded provider work,
+  one database mutation round trip, and one phase-local clock remain intact.
+- NOT in scope: retained in section 33.
+- What already exists: retained and extended in section 18.
+- `TODOS.md`: 0 candidates proposed; six CEO-approved items unchanged.
+- Failure modes: registry expanded; 0 silent unhandled critical gaps.
+- Outside voice: skipped by the under-Codex nested-review guard; no tension.
+- Parallelization: T2→T3 and T4 form 2 early lanes after T1, followed by one
+  sequential T5→T9 integration lane.
+- Implementation tasks: 5 re-review slices folded into existing parent tasks and
+  written to JSONL.
+- Lake Score: 10/10 recommendations chose the complete option.
+- Unresolved decisions: 0.
+
+Retrospective: the earlier engineering pass correctly hardened the backend,
+provider, concurrency, rollout, and recovery architecture. The later design pass
+made authored-value provenance, review-cue truth, shared Review ownership,
+relative-time lifecycle, and exact interaction-test coverage load-bearing. This
+re-review closed those deltas without reopening settled M1 scope or adding a new
+framework.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
