@@ -662,6 +662,41 @@ Today supplies its due queue; Capture supplies the single matched item selected
 for Test myself. Both origins use the same Review UI and `complete_review`
 transaction, then return to their origin after completion or pause.
 
+Review focus is an explicit workspace-level host rather than behavior hidden
+inside either destination:
+
+```text
+Today overview ── start due queue ───────┐
+                                        ▼
+Capture Re-encounter ── Test myself ──▶ LearningWorkspace
+                                        ├── ReviewSessionController (one)
+                                        ├── ReviewLaunchOrigin (today | capture)
+                                        └── ReviewFocusView (one extracted UI)
+                                                   │
+                               complete / pause / stale-item recovery
+                                                   │
+                          ┌────────────────────────┴─────────────────────┐
+                          ▼                                              ▼
+                     Today origin                               Capture origin
+                 refresh due overview                 preserve draft + refresh match
+```
+
+`TodayScreen` no longer constructs a Review controller or contains a private
+copy of the focus flow; it renders the overview and requests a due-queue launch.
+Capture requests a targeted launch with one selected active item. While Review
+is active, the workspace renders the extracted `ReviewFocusView` in place of the
+shell, and the existing system-Back/pause behavior calls the shared controller
+directly rather than reaching through a `GlobalKey`.
+
+Pause retains exactly one in-memory session and returns to its recorded origin
+with a visible Resume review affordance. A new due or targeted launch cannot
+silently replace that paused queue or response; the learner resumes it or uses
+the existing explicit discard/reload recovery first. Completion clears the
+session, reconciles the returned item into Today, refreshes Capture's active
+match projection when Capture was the origin, and then restores the shell at the
+origin destination. Capture's durable Discovery draft never moves into Review
+state and remains owned by `CaptureSessionController` throughout.
+
 ## 20. Discovery state machine
 
 ```text
@@ -1077,8 +1112,9 @@ Required test suites:
    cannot be supplied or mutated by the client.
 5. **Targeted Review interaction suite:** launch a non-due matched item, complete
    or pause back to Capture with its draft intact, recover from stale/deleted
-   items, prove Show meaning writes no attempt, resume Learn another sense, and
-   keep the Today-origin due flow unchanged.
+   items, prove Show meaning writes no attempt, resume a paused origin-owned
+   session without replacement, resume Learn another sense, and keep the
+   Today-origin due flow unchanged.
 6. **Deterministic full-app spine `[→E2E]`:** add the Flutter SDK
    `integration_test` dependency and run new Vocabulary → intended sense → first
    production → atomic save → not immediately due → re-enter → targeted Review
@@ -1471,9 +1507,9 @@ merge-conflict cost outweighs parallelism. T8 and T9 follow the integrated tree.
   - Verify: canonical state/event matrix proves no invalid cross-phase combination; independent reads can reach every legal partial outcome; ephemeral widget state cannot affect completion; stale debounced writes are rejected; v1 authored fields and v2 confirmations restore safely; manual/provider switching, edited-value replacement, another-sense escape, type reconfirmation, and the complete crash/restart matrix all pass.
 - [ ] **T6 (P1, human: ~1.5 days / Codex: ~2.5h)** — Review host — Give `LearningWorkspace` shared Review-session ownership and launch origin.
   - Surfaced by: Architecture D6 and Test D19.
-  - Files: workspace, Today/Capture coordination, Review interaction tests.
-  - Includes: due queue from Today, targeted one-item queue from Capture, return-to-origin behavior, stale/deleted-item recovery.
-  - Verify: complete/pause preserves Capture draft, Show meaning writes nothing, Today flow remains unchanged.
+  - Files: workspace, extracted Review focus view, Today/Capture coordination, Review interaction tests.
+  - Includes: one workspace-owned controller and origin, due launch callback from Today, targeted one-item callback from Capture, one extracted focus UI, direct system-Back/pause handling, non-replacing paused-session resume, return-to-origin reconciliation, and stale/deleted-item recovery.
+  - Verify: Today no longer constructs a private Review controller; both origins render the same focus view and transaction path; complete/pause preserves Capture draft; a paused response cannot be silently replaced; Show meaning writes nothing; Today-origin behavior remains unchanged.
 - [ ] **T7 (P1, human: ~3 days / Codex: ~6h)** — Presentation — Split Capture into focused phase widgets without a new UI framework.
   - Surfaced by: Code quality D10/D12, the CEO-approved phase flow, and all design-review information-architecture, interaction-state, design-system, and accessibility decisions.
   - Files: thin `capture_screen.dart` plus `presentation/learning/capture/` Entry, Senses/Meaning, Re-encounter, Production, Discovered, and shared widgets.
