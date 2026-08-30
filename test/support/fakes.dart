@@ -4,6 +4,8 @@ import 'package:whole_knowledge/app/app_dependencies.dart';
 import 'package:whole_knowledge/application/auth/auth_session_repository.dart';
 import 'package:whole_knowledge/application/capture/capture_draft.dart';
 import 'package:whole_knowledge/application/capture/lexical_provider.dart';
+import 'package:whole_knowledge/application/capture/discovery_submission.dart';
+import 'package:whole_knowledge/application/capture/discovery_validation.dart';
 import 'package:whole_knowledge/application/learning/capture_learning_item.dart';
 import 'package:whole_knowledge/application/learning/learning_item_repository.dart';
 import 'package:whole_knowledge/application/learning/review_repository.dart';
@@ -47,6 +49,7 @@ final class FakeLearningItemRepository implements LearningItemRepository {
   int listAllCalls = 0;
   int listDueCalls = 0;
   int listPageCalls = 0;
+  final Map<String, DiscoverySubmission> discoverySubmissions = {};
 
   @override
   Future<LearningItem> create(CaptureLearningItem capture) async {
@@ -72,6 +75,61 @@ final class FakeLearningItemRepository implements LearningItemRepository {
     );
     items.insert(0, item);
     return item;
+  }
+
+  @override
+  Future<List<LearningItem>> findActiveBySurfaceForm(String content) async {
+    final key = DiscoveryValidation.surfaceMatchKey(content);
+    return items
+        .where(
+          (item) =>
+              item.status == LearningItemStatus.active &&
+              DiscoveryValidation.surfaceMatchKey(item.content) == key,
+        )
+        .toList(growable: false);
+  }
+
+  @override
+  Future<DiscoveryCompletion> completeDiscovery(
+    DiscoverySubmission submission,
+  ) async {
+    final normalized = submission.normalized();
+    final prior = discoverySubmissions[normalized.submissionId];
+    if (prior != null) {
+      if (!prior.hasSamePayload(normalized)) {
+        throw StateError('Discovery submission conflict');
+      }
+      final item = items.firstWhere(
+        (candidate) => candidate.id == 'discovery-${normalized.submissionId}',
+      );
+      return DiscoveryReplayed(item);
+    }
+    final matches = await findActiveBySurfaceForm(normalized.content);
+    if (matches.isNotEmpty && !normalized.allowExistingSurface) {
+      return DiscoveryExistingSurface(matches.first);
+    }
+    final now = DateTime.utc(
+      2026,
+      8,
+      30,
+      19,
+    ).add(Duration(seconds: items.length));
+    final item = learningItem(
+      id: 'discovery-${normalized.submissionId}',
+      content: normalized.content,
+      meaning: normalized.meaning,
+      context: normalized.context,
+      source: normalized.source,
+      firstProduction: normalized.firstProduction,
+      partOfSpeech: normalized.partOfSpeech,
+      kind: normalized.kind,
+      nextReviewAt: normalized.firstProduction == null
+          ? now
+          : now.add(const Duration(hours: 24)),
+    );
+    discoverySubmissions[normalized.submissionId] = normalized;
+    items.insert(0, item);
+    return DiscoveryCreated(item);
   }
 
   @override
@@ -184,6 +242,8 @@ final class FakeReviewRepository implements ReviewRepository {
       meaning: previous.meaning,
       context: previous.context,
       source: previous.source,
+      firstProduction: previous.firstProduction,
+      lastReviewedAt: reviewedAt,
       partOfSpeech: previous.partOfSpeech,
       kind: previous.kind,
       nextReviewAt: ReviewSchedule.nextReviewAt(rating, reviewedAt),
@@ -295,6 +355,8 @@ LearningItem learningItem({
   String? context,
   String? source,
   String? partOfSpeech,
+  String? firstProduction,
+  DateTime? lastReviewedAt,
   LearningItemKind kind = LearningItemKind.expression,
   DateTime? nextReviewAt,
   int reviewCount = 0,
@@ -310,6 +372,8 @@ LearningItem learningItem({
     context: context,
     source: source,
     partOfSpeech: partOfSpeech,
+    firstProduction: firstProduction,
+    lastReviewedAt: lastReviewedAt,
     createdAt: createdAt,
     updatedAt: createdAt,
     nextReviewAt: nextReviewAt ?? createdAt,

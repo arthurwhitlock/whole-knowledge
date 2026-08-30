@@ -14,6 +14,8 @@ void main() {
       'meaning': 'take one’s time',
       'context': null,
       'source': 'conversation',
+      'first_production': 'I take my time.',
+      'last_reviewed_at': '2026-08-26T12:00:00Z',
       'created_at': '2026-08-25T12:00:00Z',
       'updated_at': '2026-08-25T12:00:00Z',
       'next_review_at': '2026-08-25T12:00:00Z',
@@ -27,6 +29,8 @@ void main() {
     expect(item.source, 'conversation');
     expect(item.partOfSpeech, 'verb');
     expect(item.createdAt, DateTime.utc(2026, 8, 25, 12));
+    expect(item.firstProduction, 'I take my time.');
+    expect(item.lastReviewedAt, DateTime.utc(2026, 8, 26, 12));
   });
 
   test('maps nullable and rated review attempts', () {

@@ -12,6 +12,11 @@ abstract final class SupabaseLearningItemMapper {
       meaning: row['meaning'] as String?,
       context: row['context'] as String?,
       source: row['source'] as String?,
+      firstProduction: row['first_production'] as String?,
+      lastReviewedAt: switch (row['last_reviewed_at']) {
+        final String value => DateTime.parse(value).toUtc(),
+        _ => null,
+      },
       createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
       updatedAt: DateTime.parse(row['updated_at'] as String).toUtc(),
       nextReviewAt: DateTime.parse(row['next_review_at'] as String).toUtc(),
