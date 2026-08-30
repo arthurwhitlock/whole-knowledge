@@ -952,6 +952,43 @@ No destructive down migration or historical-data rewrite is required.
 - Native Back preserves the durable draft; destructive restart/discard remains
   explicit and confirmed.
 
+### Adaptive behavior and input access
+
+Capture keeps the same information order at every width; adaptation changes
+spacing and action arrangement, not task sequence or available capability.
+
+| Constraint | Presentation |
+|---|---|
+| `< 640px` | 16px horizontal padding; one column; action group stacks primary then secondary at full available width; type choices and learned-sense actions wrap without horizontal scrolling |
+| `640–759px` | 24px horizontal padding within the centered 720px document; actions may share a row only when both labels fit at the current text scale |
+| `760–959px` | Native shell changes to its rail while Capture keeps the same centered document and phase state |
+| `>= 960px` | Additional outer space remains quiet margin; Capture does not become a split workspace and the 720px reading measure remains authoritative |
+| Constrained height / Android IME | Body remains one scroll view; bottom padding includes the keyboard inset plus regular spacing; focused editor and its adjacent error are revealed first, then the action group can be reached with one continued scroll; no action footer overlays content |
+| Text scaling through 200% | Layout decisions use actual constraints rather than device class; labels wrap, action rows stack, POS/example text reflows, and no content or control requires horizontal scrolling |
+
+Focus and semantics:
+
+- Focus order follows the visual document from orientation through subject,
+  active task, disclosure, status/recovery, primary action, and secondary action.
+- A phase transition places focus on its heading for orientation when there is no
+  immediate editable field; Entry, Expression Meaning, and Production instead
+  focus their first editor. The screen reader announces one phase change, not
+  every animation frame or progress update.
+- Entry's single-line editor submits through Enter and the visible Discover
+  button. Multiline meaning and production editors keep Enter for line breaks;
+  all completion remains reachable by ordinary Tab/Shift+Tab and activation,
+  with no hidden shortcut required.
+- Sense rows expose button and selected state; Space/Enter activates them.
+  `Show N more` exposes expanded/collapsed state and retains logical focus on
+  activation. Type override exposes one selected choice in a named group.
+- Errors are announced once when they appear, remain visible beside the affected
+  control, and do not steal focus repeatedly during rebuilds. Progress labels
+  announce meaningful state changes only.
+- When the IME or text scaling changes constraints, `Scrollable.ensureVisible`
+  or equivalent bounded scroll behavior reveals the focused control and inline
+  error. Motion uses `AppMotion` and becomes immediate when animations are
+  disabled.
+
 ### Capture interaction-state presentation
 
 Loading and recovery replace only the affected portion of the focused document.
