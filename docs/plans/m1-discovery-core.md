@@ -408,8 +408,13 @@ Done                                      Capture another
 Deferred production says `Ready to practice now` instead. The state is
 announced as a semantic live region. Motion is a reduced-motion-safe fade and
 small reveal; there is no confetti, bounce, reward iconography, or automatic
-redirect. `Done` goes to Today. `Capture another` resets to Entry only after the
-successful transaction is reconciled.
+redirect. `Done` is the primary button and goes to Today. `Capture another` is
+the secondary outline action and resets to Entry only after the successful
+transaction is reconciled. Below 640px or when text scaling requires it, the
+actions stack full-width in that order. Focus enters on the `Discovered` heading
+so the learner can read the saved content and timing before reaching either
+action; no timer, default focus activation, or automatic navigation rushes the
+confirmation.
 
 ## 12. Today’s Captures recommendation
 
