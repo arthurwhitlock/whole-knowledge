@@ -673,6 +673,35 @@ Database
 No UI imports Supabase, reads provider JSON, owns schedule policy, or performs
 normalization queries directly.
 
+### Capture application file responsibilities
+
+M1 keeps the Capture application layer explicit and small instead of turning
+`capture_session_controller.dart` into a library of unrelated values:
+
+| File | Sole responsibility |
+|---|---|
+| `capture_session_controller.dart` | Command orchestration, generation checks, side-effect ordering, and immutable state publication |
+| `capture_session_state.dart` | Sealed workflow phases and their narrow phase-local values |
+| `capture_draft.dart` | Versioned authored/checkpoint payload plus `CaptureDraftRepository` contract |
+| `discovery_submission.dart` | Frozen new-item submission, typed completion result, and submission-checkpoint values |
+| `discovery_failure.dart` | Closed failure codes, privacy-safe metadata, and application failure value |
+| `discovery_validation.dart` | Pure field validation and canonical surface normalization used by controller/repository parity tests |
+| `lexical_provider.dart` | Provider-neutral grouped POS, sense/example values, and provider interface |
+
+Phase-private helpers stay in the one file that owns them. No barrel file,
+`part` library, generic Result/async wrapper, base controller, or generic phase
+hierarchy is introduced. Infrastructure adapters continue in their existing
+local, dictionary, and Supabase directories. Presentation phase widgets mirror
+the user-visible phases under `presentation/learning/capture/`, while the thin
+`capture_screen.dart` owns composition, focus coordination, and the UI-only
+relative-time tick. Tests mirror these responsibility boundaries rather than
+reaching through private controller fields.
+
+The obsolete `CaptureLearningItem` direct-create value is removed only after
+`DiscoverySubmission` and `completeDiscovery` have replaced every Capture call
+site and fake. It is not retained as a compatibility alias or parallel mutation
+path.
+
 `LearningWorkspace` owns one `ReviewSessionController` and its launch origin.
 Today supplies its due queue; Capture supplies the single matched item selected
 for Test myself. Both origins use the same Review UI and `complete_review`
@@ -1498,7 +1527,7 @@ merge-conflict cost outweighs parallelism. T8 and T9 follow the integrated tree.
 
 - [ ] **T1 (P1, human: ~1.5 days / Codex: ~2.5h)** — Contracts — Define the smallest provider-neutral Discovery contract.
   - Surfaced by: Architecture D2/D7 and Code quality D10/D11/D13.
-  - Files: Capture application values, lexical values, `LearningItem` due predicate, focused tests.
+  - Files: the section 19 Capture application value files, lexical values, `LearningItem` due predicate, focused tests.
   - Includes: immutable `DiscoverySubmission`, `DiscoveryFailure` + closed code enum, pure field validator, canonical Dart surface normalizer, grouped POS/senses/examples, and nullable `LearningItem.lastReviewedAt`.
   - Verify: exhaustive failure mapping, validation boundaries, normalization fixtures, future-zero-review item is not due.
 - [ ] **T2 (P1, human: ~2.5 days / Codex: ~4h)** — Database — Add replay-safe schema, indexed matching, scheduling truth, and `complete_discovery`.
@@ -1518,7 +1547,7 @@ merge-conflict cost outweighs parallelism. T8 and T9 follow the integrated tree.
   - Verify: multi-POS 20-sense payload, one-chunk and cumulative overflow, stalled header/body, 404/429/non-2xx/malformed/empty response.
 - [ ] **T5 (P1, human: ~3 days / Codex: ~5h)** — State and drafts — Evolve `CaptureSessionController` into the sealed Discovery state family and migrate draft v1→v2.
   - Surfaced by: Architecture D3/D4/D7, Test D17/D18, and the design review's interaction-contract decisions.
-  - Files: Capture draft/repository/controller/state and focused tests.
+  - Files: `capture_session_controller.dart`, `capture_session_state.dart`, `capture_draft.dart`, the section 19 supporting values, draft repository adapter, and mirrored focused tests.
   - Includes: the section 20 sealed phase/phase-local composition, controller-versus-widget ownership boundary, v2 authored payload and revision invariant, lossless v1 migration, generation guards, independent partial read outcomes, manual/provider meaning-path preservation, session-only provider comparison/pending replacement state, late type/meaning/production reconfirmation, prepared/attempted submission checkpoints, frozen reconciliation payload, and upstream invalidation/reconfirmation.
   - Verify: canonical state/event matrix proves no invalid cross-phase combination; independent reads can reach every legal partial outcome; ephemeral widget state cannot affect completion; stale debounced writes are rejected; v1 authored fields and v2 confirmations restore safely; manual/provider switching, edited-value replacement, another-sense escape, type reconfirmation, and the complete crash/restart matrix all pass.
 - [ ] **T6 (P1, human: ~1.5 days / Codex: ~2.5h)** — Review host — Give `LearningWorkspace` shared Review-session ownership and launch origin.
