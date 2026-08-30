@@ -18,6 +18,8 @@ final class LearningItem {
     this.meaning,
     this.context,
     this.source,
+    this.firstProduction,
+    this.lastReviewedAt,
   });
 
   final String id;
@@ -28,6 +30,8 @@ final class LearningItem {
   final String? meaning;
   final String? context;
   final String? source;
+  final String? firstProduction;
+  final DateTime? lastReviewedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime nextReviewAt;
@@ -37,6 +41,6 @@ final class LearningItem {
 
   bool isDueAt(DateTime instant) {
     return status == LearningItemStatus.active &&
-        (reviewCount == 0 || !nextReviewAt.isAfter(instant));
+        !nextReviewAt.isAfter(instant);
   }
 }

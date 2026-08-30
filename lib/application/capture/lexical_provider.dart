@@ -1,8 +1,20 @@
 final class LexicalSense {
-  const LexicalSense({required this.partOfSpeech, required this.definition});
+  const LexicalSense({
+    required this.partOfSpeech,
+    required this.definition,
+    this.example,
+  });
 
   final String partOfSpeech;
   final String definition;
+  final String? example;
+}
+
+final class LexicalPartOfSpeechGroup {
+  const LexicalPartOfSpeechGroup({required this.name, required this.senses});
+
+  final String name;
+  final List<LexicalSense> senses;
 }
 
 final class LexicalLookup {
@@ -10,6 +22,21 @@ final class LexicalLookup {
 
   final String term;
   final List<LexicalSense> senses;
+
+  List<LexicalPartOfSpeechGroup> get groups {
+    final grouped = <String, List<LexicalSense>>{};
+    for (final sense in senses) {
+      grouped.putIfAbsent(sense.partOfSpeech, () => []).add(sense);
+    }
+    return List.unmodifiable(
+      grouped.entries.map(
+        (entry) => LexicalPartOfSpeechGroup(
+          name: entry.key,
+          senses: List.unmodifiable(entry.value),
+        ),
+      ),
+    );
+  }
 }
 
 abstract interface class LexicalProvider {
