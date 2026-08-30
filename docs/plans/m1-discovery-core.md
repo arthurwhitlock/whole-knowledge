@@ -255,6 +255,16 @@ Visual treatment:
 - Expansion occurs within its POS group without collapsing other groups or
   moving the current selection. Long results gain whitespace and section
   rhythm, not repeated card chrome.
+- `Enter meaning manually` appears exactly once after the final POS group as a
+  persistent ghost action, never once per group. Activating it reveals a
+  visibly labeled editor in place and moves focus to that editor. A zero-result
+  or failed lookup opens the same editor automatically beneath the recovery
+  status rather than requiring another activation.
+- Typing a manual meaning clears the visual provider-sense selection and marks
+  the manual value as the intended meaning. If the learner later selects a
+  provider sense, the authored manual value remains in the active draft and is
+  restored if manual meaning is chosen again; switching paths never destroys
+  learner-authored text.
 
 This keeps the complete entry available while making intended-sense selection,
 not dictionary browsing, the task.
