@@ -704,6 +704,43 @@ Term/type changes increment the request generation, invalidate derived
 completion, and preserve authored text. Provider sense lists are session-only;
 restoration never pretends that remote lookup output was persisted.
 
+The sealed family enumerates workflow phases, not the cross-product of every
+loading, selection, reveal, and confirmation flag:
+
+```text
+CaptureSessionState (sealed phase)
+├── Restoring
+├── Entry
+├── Checking
+│   ├── libraryOutcome  (pending | matches | none | typed failure)
+│   └── lexicalOutcome  (pending | grouped result | typed failure | skipped)
+├── VocabularySenses
+│   └── meaningChoice   (none | manual | provider copy | replacement pending)
+├── ExpressionMeaning
+├── ReEncounter
+│   └── itemChoice      (unselected | selected | selected + revealed)
+├── Production
+├── Saving              (frozen attempted payload)
+├── Reconciling         (same frozen payload)
+└── Discovered          (persisted item returned by the transaction)
+```
+
+Each phase is immutable and owns only narrow, phase-specific subvalues. The two
+Checking outcomes update independently under the same request generation; the
+controller can therefore expose a usable lexical result while the Library read
+is pending without inventing a subtype for every combination. Vocabulary owns
+the active meaning path and any proposed replacement; Re-encounter owns selected
+and revealed item identity so changing selection deterministically clears the
+prior reveal. Saving and Reconciling accept only a frozen submission checkpoint.
+
+The controller owns every value that can change workflow eligibility, reveal
+saved learning evidence, or affect persistence. Widgets may own only ephemeral
+presentation state such as expanded POS group IDs, hover, focus nodes, scroll
+position, and animation progress. Those values cannot enable completion or
+survive a phase change accidentally. This uses ordinary Dart sealed/final types
+and exhaustive switches; it adds no generic state machine, generic async/Result
+wrapper, or alternate state-management package.
+
 ### Durable authored draft contract
 
 `CaptureDraft` v2 persists only authored work and mutation checkpoints. Its
@@ -1430,8 +1467,8 @@ merge-conflict cost outweighs parallelism. T8 and T9 follow the integrated tree.
 - [ ] **T5 (P1, human: ~3 days / Codex: ~5h)** — State and drafts — Evolve `CaptureSessionController` into the sealed Discovery state family and migrate draft v1→v2.
   - Surfaced by: Architecture D3/D4/D7, Test D17/D18, and the design review's interaction-contract decisions.
   - Files: Capture draft/repository/controller/state and focused tests.
-  - Includes: the section 20 v2 authored payload and revision invariant, lossless v1 migration, generation guards, partial read states, manual/provider meaning-path preservation, session-only provider comparison/pending replacement state, late type/meaning/production reconfirmation, prepared/attempted submission checkpoints, frozen reconciliation payload, and upstream invalidation/reconfirmation.
-  - Verify: canonical state/event matrix, stale debounced-write rejection, v1 authored-field preservation, v2 confirmation restoration, grouped expansion, manual/provider switching, edited-value replacement, another-sense escape, type reconfirmation, and the complete crash/restart matrix.
+  - Includes: the section 20 sealed phase/phase-local composition, controller-versus-widget ownership boundary, v2 authored payload and revision invariant, lossless v1 migration, generation guards, independent partial read outcomes, manual/provider meaning-path preservation, session-only provider comparison/pending replacement state, late type/meaning/production reconfirmation, prepared/attempted submission checkpoints, frozen reconciliation payload, and upstream invalidation/reconfirmation.
+  - Verify: canonical state/event matrix proves no invalid cross-phase combination; independent reads can reach every legal partial outcome; ephemeral widget state cannot affect completion; stale debounced writes are rejected; v1 authored fields and v2 confirmations restore safely; manual/provider switching, edited-value replacement, another-sense escape, type reconfirmation, and the complete crash/restart matrix all pass.
 - [ ] **T6 (P1, human: ~1.5 days / Codex: ~2.5h)** — Review host — Give `LearningWorkspace` shared Review-session ownership and launch origin.
   - Surfaced by: Architecture D6 and Test D19.
   - Files: workspace, Today/Capture coordination, Review interaction tests.
