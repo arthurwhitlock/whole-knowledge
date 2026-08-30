@@ -1811,37 +1811,43 @@ framework.
 |---|---|---|---:|---|---|
 | CEO Review | `/plan-ceo-review` | Scope and strategy | 1 | CLEAR | Scope-reduced M1 approved; 0 critical gaps |
 | Codex Review | `/codex review` | Independent second opinion | 0 | — | Not run |
-| Eng Review | `/plan-eng-review` | Architecture and tests (required) | 3 | CLEAR (PLAN) | 18 issues resolved; 0 critical gaps |
+| Eng Review | `/plan-eng-review` | Architecture and tests (required) | 4 | CLEAR (PLAN) | Latest pass: 9 issues resolved; 0 critical gaps |
 | Design Review | `/plan-design-review` | UI/UX gaps | 3 | CLEAR (FULL) | Score 8/10 → 10/10; 17 decisions resolved; 0 deferred |
 | DX Review | `/plan-devex-review` | Developer-experience gaps | 0 | — | Not applicable to this user-facing slice |
 
 ### Completion summary
 
-- System audit: `DESIGN.md` exists; M1 covers six Capture phases, adaptive
-  navigation prominence, Re-encounter, and targeted Review handoff.
-- Step 0: initial completeness 8/10; all seven passes selected.
-- Information Architecture: 8/10 → 10/10.
-- Interaction State Coverage: 7/10 → 10/10.
-- User Journey and Emotional Arc: 7/10 → 10/10.
-- AI Slop Risk: 9/10 → 10/10; classifier APP UI; no hard-rejection pattern.
-- Design System Alignment: 8/10 → 10/10.
-- Responsive and Accessibility: 8/10 → 10/10.
-- Unresolved Design Decisions: 11 resolved, 0 deferred.
+- Step 0 Scope Challenge: full M1 product scope retained; duplicate design task
+  stream folded into T5 and T7–T9.
+- Architecture Review: 4 findings resolved — authored draft truth,
+  authoritative last-review projection, phase-local state composition, and one
+  workspace Review host.
+- Code Quality Review: 2 findings resolved — shared relative-time presentation
+  and focused Capture application files.
+- Test Review: 3 gaps resolved — 80 named controller/draft cases plus generated
+  invalid rows, 7 focused widget/accessibility suites, and 3 deterministic
+  journeys on Linux and Android.
+- Performance Review: 0 issues; current indexed/bounded/one-round-trip plan
+  remains intact.
 - NOT in scope: retained in section 33.
 - What already exists: retained and extended in section 18.
 - `TODOS.md`: 0 new candidates; six CEO-approved follow-ups unchanged.
-- Mockups: 0 generated and 0 approved because the installed gstack designer had
-  no configured OpenAI API key; text-based fallback completed every pass.
-- Implementation tasks: five design-review slices written to the plan and JSONL.
-- Overall design score: 8/10 → 10/10.
+- Failure modes: registry expanded; 0 critical gaps.
+- Outside voice: skipped under the Codex nested-review guard; no cross-model
+  tension was created.
+- Parallelization: 2 early parallel lanes after T1, then 1 sequential
+  integration lane.
+- Implementation tasks: 5 re-review slices written to JSONL and folded into the
+  existing T1–T8 parent tasks.
+- Lake Score: 10/10 recommendations chose the complete option.
+- Application code and hosted state changed: no.
 
-Retrospective: the earlier M0 design pass and native QA established the visual
-system but did not cover M1's phased Discovery interaction. This pass now fixes
-its hierarchy, visible states, emotional register, component usage, adaptive
-behavior, and detailed interaction choices. No application code was implemented.
+Retrospective: the first engineering review hardened M1's backend, provider,
+concurrency, recovery, and rollout. The later design pass made several
+interaction contracts load-bearing. This re-review made those contracts
+executable without reopening product scope or introducing a second framework.
 
-**VERDICT:** CEO + ENG + DESIGN CLEARED — M1 is design-complete; re-run the
-engineering plan review before implementation because these interaction details
-postdate the latest architecture pass.
+**VERDICT:** CEO + ENG + DESIGN CLEARED — M1 is ready for implementation when
+the founder chooses to start.
 
 NO UNRESOLVED DECISIONS
