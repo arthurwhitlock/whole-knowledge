@@ -418,12 +418,22 @@ unlikely to happen or be true
 
 “It seemed improbable that the train would arrive early.”
 
-First review: 30 Aug, 14:20
+First review tomorrow at 14:20
 
 Done                                      Capture another
 ```
 
-Deferred production says `Ready to practice now` instead. The state is
+The timing copy renders the persisted `next_review_at` returned by the completed
+transaction; the client does not synthesize a fresh 24-hour promise. Use
+locale-aware relative calendar language first (`later today`, `tomorrow`, or the
+short local date when farther away) followed by the exact local time. Its
+semantic label includes the full local date, time, and time zone so precision is
+available without making the visual copy bureaucratic. Refresh the relative
+label when the app resumes or the local calendar day changes while this state is
+open.
+
+Deferred production says `Ready to practice now` instead and exposes the exact
+schedule only through the saved item's ordinary detail. The state is
 announced as a semantic live region. Motion is a reduced-motion-safe fade and
 small reveal; there is no confetti, bounce, reward iconography, or automatic
 redirect. `Done` is the primary button and goes to Today. `Capture another` is
