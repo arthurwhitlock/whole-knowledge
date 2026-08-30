@@ -122,8 +122,9 @@ Rules:
 - Empty or whitespace-only submission shows one inline live-region error and
   retains focus.
 - Enter/submit and the button invoke the same coalesced transition.
-- A restored durable draft returns to its last valid phase with a restrained
-  `Draft restored` status.
+- A restored durable draft returns to the furthest phase supported by authored
+  persisted fields with a restrained `Draft restored` status. Lookup-only state
+  returns to Entry with the term preserved and requires Discover again.
 - Optional encounter context and source remain available only behind a later
   `Add encounter details` disclosure. Existing capabilities are preserved but
   do not compete with Discovery.
@@ -272,7 +273,7 @@ phrase
 → Add encounter details                       optional disclosure
 → Use the expression in your own sentence     primary production
 → complete or explicitly finish later
-→ save and enter Review
+→ save and enter Discovered confirmation
 ```
 
 M1 performs no English dictionary lookup, POS selection, usage-pattern
@@ -1109,19 +1110,52 @@ product or architecture decisions remain in this specification.
 
 ## GSTACK REVIEW REPORT
 
-| Review area | Result |
-|---|---|
-| Scope | Reduced architecture footprint; full Discovery product loop preserved |
-| Architecture | 7 findings resolved: existing seams, due-state truth, durable reconciliation, generated match key, shared Review ownership, sealed states, concurrent duplicate guard |
-| Code quality | 4 findings resolved: one failure value, boundary validation parity, focused phase widgets, one Discovery submission contract |
-| Tests | 5 gaps resolved in the plan; 58/58 behavioral paths specified, including deterministic Linux/Android E2E and real two-client database concurrency |
-| Performance | 2 findings resolved: pre-allocation body cap and aborting end-to-end deadline; no N+1 or cache requirement |
-| Security/deployment | Auth-derived ownership, RLS, hardened RPC, staged grant cutover, forward-only rollback |
-| Existing-system reuse | Capture, drafts, lexical provider, learning repository, workspace, Review transaction, adaptive shell, and design tokens are evolved rather than replaced |
-| Outside voice | Skipped; no sub-agent delegation was requested or authorized |
-| New TODO candidates | 0; existing CEO-approved deferred items retained |
-| Application implementation | Not started; this review changed the plan and local review artifacts only |
+### Completion summary
 
-Final readiness: **CLEAR TO IMPLEMENT AFTER THE NEXT EXPLICIT IMPLEMENTATION REQUEST.**
+| Review step | Runs | Status | Findings |
+|---|---:|---|---|
+| Scope challenge | 1 | SCOPE REDUCED | Full M1 product loop retained; architecture reduced to existing seams |
+| Architecture | 1 | CLEAR | 7 issues found and resolved |
+| Code quality | 1 | CLEAR | 4 issues found and resolved |
+| Tests | 1 | CLEAR | Coverage diagram produced; 5 gaps converted into required suites |
+| Performance | 1 | CLEAR | 2 issues found and resolved; no N+1 or cache requirement |
+| Failure modes | 1 | CLEAR | 0 critical gaps after the plan |
+| NOT in scope | 1 | WRITTEN | Explicit product and engineering deferrals retained |
+| What already exists | 1 | WRITTEN | Existing Capture, Review, repository, shell, and design seams mapped |
+| `TODOS.md` review | 1 | NO CHANGE | 0 new candidates; 6 CEO-approved items retained |
+| Outside voice | 0 | SKIPPED | No sub-agent delegation requested or authorized |
+
+Parallelization: two post-contract lanes can run concurrently (database/repository
+and provider), followed by one sequential Capture integration lane. The conflict
+boundary is explicit in section 39.
+
+Lake Score: **19/19** substantive recommendations chose the complete in-scope
+option. All 18 findings are resolved; the extra recommendation is the accepted
+scope-reduction architecture decision.
+
+Retrospective: recent fixes in the same area addressed Capture in-flight edits,
+post-create cleanup, Review transition boundaries, adaptive state retention, and
+due refresh. M1 deliberately touches those seams, so the state/event, crash,
+targeted-Review, and full-app regression suites are release requirements rather
+than optional cleanup.
+
+### Review readiness dashboard
+
+| Review | Runs | Last run (UTC) | Status | Findings | Required |
+|---|---:|---|---|---|---|
+| Eng Review | 3 | 2026-08-30 00:10 | CLEAR (PLAN) | 18 resolved, 0 open | YES |
+| CEO Review | 1 | 2026-08-29 11:22 | CLEAR | Scope-reduced M1 approved | no |
+| Design Review | 2 | 2026-08-28 10:23 | CLEAR (FULL, pre-M1) | M0 visual system only | no |
+| Adversarial | 0 | — | — | Not run | no |
+| Outside Voice | 0 | — | — | Skipped | no |
+
+The existing full design review is fresh by age but predates this M1 Discovery
+plan, so it does not validate the newly specified phased Capture interaction.
+
+**VERDICT:** CEO + ENG CLEARED — M1 is ready for a dedicated plan-design review
+or, after an explicit implementation request, execution from T1.
+
+Application implementation has not started. This review changed only this plan
+and local gstack review artifacts.
 
 NO UNRESOLVED DECISIONS
