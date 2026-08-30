@@ -362,7 +362,11 @@ that provider results and owned items are interchangeable. A sole active match
 is selected automatically. With multiple matches, no row is preselected; the
 learner chooses one cue row before any item-specific action appears. Before
 reveal, a row shows POS, available captured context or source, capture date, and
-last-review fact—but never the saved meaning or first production. Selection uses
+the nullable server-recorded `lastReviewedAt` fact—but never the saved meaning
+or first production. Reviewed items render locale-aware `Last reviewed <relative
+date>` copy; never-reviewed items omit that line and retain the truthful capture
+cue rather than substituting `updatedAt`, `nextReviewAt`, or a zero-count phrase.
+Selection uses
 accent-subtle fill, the narrow accent marker, semantic selected state, and
 retains those cues. Sparse legacy items use a neutral `Captured <date>` cue;
 they never invent or expose a meaning preview merely to differentiate rows.
@@ -559,7 +563,7 @@ demand, and cost must be validated first.
 | `CaptureSessionController` and durable file draft | Evolve in place into sealed immutable Discovery states; migrate the same draft seam to v2 |
 | Provider-neutral `LexicalProvider` | Extend to POS groups and optional examples |
 | Bounded EnglishDictionaryAPI adapter | Reuse request coalescing, attribution, and manual fallback; make its body cap and timeout genuinely end-to-end |
-| Flat `learning_items` with nullable POS | Retain one item per learned sense; add capture-origin production and idempotency fields |
+| Flat `learning_items` with nullable POS | Retain one item per learned sense; add capture-origin production, authoritative last-review time, and idempotency fields |
 | Append-only `review_attempts` and `complete_review` | Reuse unchanged for Test myself; do not mix first production into scheduled attempts |
 | RLS and protected scheduling fields | Preserve; add one hardened Discovery transaction |
 | `LearningWorkspace` and Today-owned Review flow | Move Review-session ownership to the workspace so Today and Capture launch the same UI/transaction |
@@ -778,6 +782,9 @@ when the learner explicitly chooses Learn another sense.
 Additive database needs:
 
 - nullable capture-origin first-production text on `learning_items`;
+- nullable protected `last_reviewed_at` on `learning_items`, written only by the
+  existing hardened `complete_review` transaction and never inferred from the
+  generic item update timestamp;
 - a client-generated Discovery submission UUID with uniqueness scoped to owner;
 - a stored generated `surface_match_key`, derived with the database copy of the
   canonical normalizer;
@@ -820,6 +827,13 @@ and are not retroactively rejected or rewritten.
 queries, fakes, and tests must remove the current `review_count == 0` shortcut:
 a completed first production remains not due for 24 hours even with zero
 reviews, while a deferred item is due immediately because its timestamp is now.
+
+`complete_review` sets `last_reviewed_at` from the same server-side
+`reviewed_at` instant used for both append-only attempts and schedule mutation.
+Identical submission replay returns the stored item without advancing it again.
+`LearningItem.lastReviewedAt` remains nullable for every never-reviewed item.
+The exact-surface match read projects it with the item, so Re-encounter performs
+no attempt-history follow-up query and never treats `updatedAt` as review truth.
 
 The old `CaptureLearningItem` / direct `create` path is replaced for Capture by
 one immutable `DiscoverySubmission` and
@@ -922,7 +936,7 @@ Critical gaps after planned work: **0**.
 | Threat | Likelihood | Impact | Mitigation |
 |---|---|---|---|
 | Cross-user creation/read | Medium | High | Auth-derived owner, RLS, negative two-user tests |
-| Protected schedule/counter injection | Medium | Medium | No parameters/grants for protected fields |
+| Protected schedule/counter/review-time injection | Medium | Medium | No parameters/grants for protected fields; `last_reviewed_at` is written only inside `complete_review` |
 | Privileged-function object hijack | Low | High | Empty search path and fully qualified relations |
 | Submission replay with changed content | Low | Medium | Owner-scoped uniqueness plus payload mismatch conflict |
 | Oversized/blank/untrusted Unicode input | Medium | Medium | Pure Dart field validation plus authoritative SQL/RPC validation and parity fixtures |
@@ -949,6 +963,9 @@ background job, command execution, storage bucket, or AI prompt surface.
   and mid-stream abortion to the same typed timeout failure.
 - Add no persistent lexical cache and no shared dictionary table.
 - Use one indexed owner/surface match query; no per-result follow-up queries.
+  The covered item projection includes nullable `last_reviewed_at`, capture time,
+  context/source, POS, and first production; it does not join or aggregate
+  `review_attempts` for each match.
   Verify its query plan against a realistic local fixture (at least 10,000 rows)
   and fail the performance check if it falls back to an avoidable full scan.
 - Keep complete Discovery as one database round trip.
@@ -1018,7 +1035,9 @@ Required test suites:
    normalization parity, query plan at 10,000 rows, simultaneous distinct first
    submissions yielding one item plus one typed existing result, explicit another
    sense, replay-before-duplicate ordering, other-owner isolation, and rollback
-   releasing the advisory lock.
+   releasing the advisory lock; also prove `last_reviewed_at` is null at capture,
+   advances exactly once with a rated Review, survives identical replay, and
+   cannot be supplied or mutated by the client.
 5. **Targeted Review interaction suite:** launch a non-due matched item, complete
    or pause back to Capture with its draft intact, recover from stale/deleted
    items, prove Show meaning writes no attempt, resume Learn another sense, and
@@ -1391,18 +1410,18 @@ merge-conflict cost outweighs parallelism. T8 and T9 follow the integrated tree.
 - [ ] **T1 (P1, human: ~1.5 days / Codex: ~2.5h)** — Contracts — Define the smallest provider-neutral Discovery contract.
   - Surfaced by: Architecture D2/D7 and Code quality D10/D11/D13.
   - Files: Capture application values, lexical values, `LearningItem` due predicate, focused tests.
-  - Includes: immutable `DiscoverySubmission`, `DiscoveryFailure` + closed code enum, pure field validator, canonical Dart surface normalizer, grouped POS/senses/examples.
+  - Includes: immutable `DiscoverySubmission`, `DiscoveryFailure` + closed code enum, pure field validator, canonical Dart surface normalizer, grouped POS/senses/examples, and nullable `LearningItem.lastReviewedAt`.
   - Verify: exhaustive failure mapping, validation boundaries, normalization fixtures, future-zero-review item is not due.
 - [ ] **T2 (P1, human: ~2.5 days / Codex: ~4h)** — Database — Add replay-safe schema, indexed matching, scheduling truth, and `complete_discovery`.
   - Surfaced by: Architecture D2/D5/D8 and Test D16.
   - Files: forward migrations and `supabase/tests/database/learning_loop_test.sql`.
-  - Includes: first production, owner-scoped submission key, generated surface key, active partial index, replay-first RPC, advisory lock, explicit another-sense intent, grants/RLS.
-  - Verify: pgTAP validation/ownership/replay/conflict/scheduling/concurrency, normalizer parity, 10,000-row query plan, rollback releases lock.
+  - Includes: first production, protected nullable last-review time maintained by `complete_review`, owner-scoped submission key, generated surface key, active partial index, replay-first RPC, advisory lock, explicit another-sense intent, grants/RLS.
+  - Verify: pgTAP validation/ownership/replay/conflict/scheduling/concurrency, null/advance/replay/protection behavior for last-review time, normalizer parity, 10,000-row query plan, rollback releases lock.
 - [ ] **T3 (P1, human: ~2 days / Codex: ~3h)** — Repository — Replace Capture direct insert with exact-match and atomic Discovery operations.
   - Surfaced by: Architecture D5/D8 and Code quality D10/D13.
   - Files: learning repository contract, Supabase adapter, row mappers, fakes, repository/integration tests.
-  - Includes: `findActiveBySurfaceForm`, `completeDiscovery`, typed existing/replay/failure mapping, sole timestamp due query.
-  - Verify: every matching sense, owner isolation, no stemming, identical retry, no `review_count == 0` due shortcut.
+  - Includes: `findActiveBySurfaceForm`, `completeDiscovery`, nullable last-review mapping, typed existing/replay/failure mapping, sole timestamp due query.
+  - Verify: every matching sense and its one-read capture/review cues, never-reviewed null behavior, owner isolation, no stemming, identical retry, no `review_count == 0` due shortcut.
 - [ ] **T4 (P1, human: ~1.5 days / Codex: ~2.5h)** — Provider — Harden and enrich the existing EnglishDictionaryAPI adapter.
   - Surfaced by: Performance D21/D22 and the existing global sense-cap path.
   - Files: lexical provider contract/adapter and fixtures.
