@@ -255,6 +255,16 @@ Visual treatment:
 - Expansion occurs within its POS group without collapsing other groups or
   moving the current selection. Long results gain whitespace and section
   rhythm, not repeated card chrome.
+- Selecting a provider row keeps that row visibly selected and creates one
+  stable `Selected meaning` region after all POS groups. The region shows POS
+  and the copied definition as ordinary content, followed by a visible `Edit
+  meaning` ghost action; it is not another card. Continue to Production becomes
+  the primary action only when this selected value is valid.
+- `Edit meaning` reveals visibly labeled, prefilled meaning and POS controls
+  inside that region and moves focus to the meaning editor. Saving an edit
+  returns to the compact summary without changing the selected provider row;
+  the authored values, rather than the raw provider text, are what the learner
+  reviews and ultimately persists.
 - `Enter meaning manually` appears exactly once after the final POS group as a
   persistent ghost action, never once per group. Activating it reveals a
   visibly labeled editor in place and moves focus to that editor. A zero-result
