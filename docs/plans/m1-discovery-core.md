@@ -466,6 +466,34 @@ Current style references:
 - provider and repository isolation from widgets;
 - centralized colors, spacing, radii, typography, and motion.
 
+### M1 component and token mapping
+
+M1 composes the established component vocabulary. It adds no exported
+Discovery design system, generic `PhaseScaffold`, stepper, notice family, card
+family, or alternate Material form theme. Small private widgets may remove
+literal repetition inside Capture, but their API stays specific to the repeated
+anatomy proven by these phases.
+
+| M1 element | Existing vocabulary | Required treatment |
+|---|---|---|
+| Mobile/desktop destination | Native `NavigationBar` / `NavigationRail` | Preserve semantics and restoration; apply `accentSubtle` plus `brandAccent` only to Capture selection/prominence |
+| Focused document | `SingleChildScrollView`, centered `ConstrainedBox`, `FocusTraversalGroup` | `formMaxWidth`, 16/24px page padding, background surface; no enclosing decorative card |
+| Orientation and subject | `ShadTextTheme` page/feature/label/meta roles | One page title, stable term/type subject, quiet top-leading ghost Back action after Entry |
+| Language, meaning, production | Existing `ShadInput` / `ShadTextarea` plus compact editing context menu | Visible labels, semantic required state, existing control radius and input/focus tokens |
+| Type suggestion/override | Existing regular and outline `ShadButton` variants | Two plainly labeled choices; compact grouping without pill styling or a custom segmented-control package |
+| Sense choice | Semantic button/selected wrapper plus existing ink/focus behavior | Divider-separated editorial row specified in section 7; no `ShadCard` per sense |
+| POS group and expansion | Label/meta typography plus `ShadButton.ghost` | Heading owns its senses; `Show N more` stays left-aligned and exposes expanded state semantically |
+| Encounter-details disclosure | `ShadButton.ghost`, `AnimatedSize`, `AnimatedSwitcher` | Secondary, visible, and in flow; revealed fields reuse existing controls and structural motion |
+| Progress and recovery | Adaptive progress indicator, `Semantics(liveRegion: true)`, text action | Inline named status beside the content it affects; no toast-only error, banner card, or spinner overlay |
+| Primary/secondary actions | Regular `ShadButton`, then outline or ghost variant | One primary action per phase; defer remains visible as outline, Back/manual alternatives use ghost |
+| Completion | Typography, spacing, dividers, semantic live region | Saved content is the visual anchor; no reward surface, badge, oversized icon, shadow, or gradient |
+| Phase transition | Existing `AppMotion` with opacity, 4–8px translation, and bounded size | 220ms standard transition, zero nonessential duration when animations are disabled |
+
+All values come from `AppColors`, `AppTypography`, `AppSpacing`, `AppRadius`, and
+`AppMotion`. New raw color, spacing, radius, duration, or text-style literals in
+phase widgets are design-review failures unless they first become justified
+semantic tokens used beyond one incidental placement.
+
 Anti-patterns to avoid:
 
 - extending the current 585-line Capture form into a thousand-line phase host;
