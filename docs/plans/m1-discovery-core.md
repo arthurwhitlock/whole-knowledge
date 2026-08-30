@@ -1,6 +1,6 @@
 # Whole Knowledge M1 — Discovery Core
 
-Status: CEO- and engineering-reviewed specification
+Status: CEO-, engineering-, and design-reviewed specification
 
 Mode: Scope Reduction
 
@@ -93,7 +93,7 @@ monetization. Accepted follow-ups live in `TODOS.md`.
 ## 4. Mobile Capture entry and navigation role
 
 Mobile keeps Capture as the middle native `NavigationDestination`, not a modal
-or floating action. Its icon sits in a restrained 44–48px accent-subtle field
+or floating action. Its icon sits in the existing restrained 48px accent-subtle field
 with a 1px accent border. Selection strengthens fill and foreground without
 growing, floating, bouncing, or losing the text label. Native focus, semantics,
 touch targets, selection, keyboard handling, and restoration remain intact.
@@ -1110,7 +1110,7 @@ shown independently so one slow or failed service does not hide usable results.
 | Entry parallel reads | Keep term/type orientation visible; show separate `Checking your Library` and `Finding English meanings` rows in the future content positions | No exact match continues to the correct Vocabulary or Expression task | Each failed row keeps an adjacent Retry; Library failure gates creation, while lookup failure exposes manual meaning | Exact matches open Re-encounter; otherwise grouped senses or manual Expression meaning replaces progress in place | A completed result becomes usable immediately while the unresolved row remains visibly pending |
 | Vocabulary senses | Preserve already returned POS groups while a retried lookup is pending | `No English entry found` followed by the visible manual-meaning editor | Provider-specific stable copy, Retry, and manual meaning remain together | All POS headings, two senses per group, selection, examples, and per-group expansion | If Library is unresolved, selection and authored work continue but final creation remains gated |
 | Expression meaning | No remote lookup; draft-write activity does not replace the editor | Blank editor with visible required label and concise prompt | Field error stays below the editor and receives focus on submission | Valid authored meaning reveals the Production action | Library-pending or failed status remains visible without disabling meaning entry |
-| Re-encounter | Keep subject and any returned learned-sense rows while refreshing a stale match | Explain that the item is no longer available, then return to Discovery with the draft intact | Inline retry or session-recovery action adjacent to the failed sense | One or more learned-sense rows plus one shared selected-sense action group | A late exact match interrupts new-item completion with `Already in your knowledge`; authored meaning and production stay in the draft and resume if `Learn another sense` is chosen |
+| Re-encounter | Keep subject and any returned learned-sense rows while refreshing a stale match | Explain that the item is no longer available, then return to Discovery with the draft intact | Inline retry or session-recovery action adjacent to the failed sense | One or more learned-sense rows plus one shared action group whose item actions follow selection | A late exact match interrupts new-item completion with `Already in your knowledge`; authored meaning and production stay in the draft and resume if `Learn another sense` is chosen |
 | Production | No remote loading; local draft security status stays adjacent without covering the editor | Empty required editor on the primary path; defer remains visible and secondary | Validation or draft-write failure preserves the sentence, focuses the affected control, and offers Retry | Confirmed original sentence enables `Complete discovery` | A changed meaning preserves the sentence but marks it unconfirmed until edited or explicitly reconfirmed |
 | Save and reconciliation | Freeze controls and payload; primary action says `Saving` or `Confirming discovery` with restrained progress | — | Definitive validation returns to the named field; unknown outcome keeps same-ID Retry; payload conflict stops blind retry | Transition once to Discovered after new save or identical replay reconciliation | Library-check gating explains why save is unavailable and places Retry beside that status |
 | Discovered | — | — | Cleanup failure never implies save failure or offers duplicate submission | Announced confirmation with saved content, truthful review timing, `Done`, and `Capture another` | Deferred production substitutes `Ready to practice now` and omits an empty quotation block |
@@ -1400,6 +1400,82 @@ Accepted follow-ups are recorded in `TODOS.md`:
 The engineering review found no additional deferred-work candidate worth adding
 to `TODOS.md`; the six CEO-approved follow-ups remain unchanged. No unresolved
 product or architecture decisions remain in this specification.
+
+## 41. M1 design-review outcome
+
+The M1-specific design review raised design completeness from **8/10 to 10/10**.
+It changed only this specification and local gstack artifacts; application code
+has not started.
+
+| Pass | Initial | Final | Result |
+|---|---:|---:|---|
+| Information Architecture | 8/10 | 10/10 | Shared phase anatomy, scan order, Back behavior, and one centered document fixed |
+| Interaction State Coverage | 7/10 | 10/10 | Visible loading/empty/error/success/partial matrix and late-match behavior fixed |
+| User Journey and Emotional Arc | 7/10 | 10/10 | Quiet-confidence storyboard, time horizons, and voice constraints fixed |
+| AI Slop Risk | 9/10 | 10/10 | App-UI hard rules and editorial sense-row treatment fixed |
+| Design System Alignment | 8/10 | 10/10 | Existing component/token mapping and abstraction boundary fixed |
+| Responsive and Accessibility | 8/10 | 10/10 | Width, IME, text-scale, focus, semantics, and motion behavior fixed |
+| Unresolved Design Decisions | 11 open choices | 0 | All choices resolved; none deferred |
+
+Accepted design decisions:
+
+1. Use one centered 720px phase-replacing Capture document on every width.
+2. Render Library matching and lexical lookup as independent inline states.
+3. Use quiet confidence from encounter through grounded completion.
+4. Present senses as divider-separated editorial selection rows.
+5. Compose existing native, `shadcn_ui`, token, and motion primitives.
+6. Keep phase actions in flow with keyboard-aware reveal and adaptive stacking.
+7. Show inferred type as status plus one direct reversal action.
+8. Use one Re-encounter action group after the learned-sense list.
+9. Reveal manual Vocabulary meaning in place from one persistent action.
+10. Keep saved meanings hidden until the learner chooses `Show meaning`.
+11. Make `Done` the primary Discovered action and never auto-redirect.
+12. Show a compact selected-meaning summary with explicit editing.
+13. Confirm inline before a new sense replaces learner-edited meaning.
+14. Use persisted, locale-aware relative-first review timing.
+15. Keep `Learn another sense` available before item selection.
+16. Reveal encounter details inline only after valid meaning, reopening authored content.
+17. Preserve authored work and reconfirm inline after a late type change.
+
+Visual mockups were attempted through the required gstack designer, but the
+installed binary had no configured OpenAI API key and failed before producing
+output. The review therefore used the skill's text-based fallback. There are no
+approved mockups to bind to implementation.
+
+`What already exists` remains section 18 and `Explicitly NOT in M1` remains
+section 33. The TODO review produced **0 new candidates**: every design finding
+was resolved in scope, and the six CEO-approved follow-ups in `TODOS.md` remain
+unchanged.
+
+### Design-review implementation tasks
+
+These refine existing T5 and T7–T9; they do not add product scope or authorize
+hosted deployment. Effort is a review-specific slice within the parent task, not
+an additive estimate.
+
+- [ ] **DT1 (P1, human: ~1 day / Codex: ~2h)** — Capture composition — Build the focused phase document and deterministic hierarchy.
+  - Surfaced by: Information Architecture — phase anatomy, scan order, Back, subject position, and terminal actions were previously underspecified.
+  - Files: `lib/presentation/learning/capture_screen.dart`, `lib/presentation/learning/capture/`, focused widget tests.
+  - Verify: all six phases preserve shell/subject position, render the specified first/second/third scan targets, and move focus correctly.
+- [ ] **DT2 (P1, human: ~1.5 days / Codex: ~3h)** — Discovery interaction — Build the editorial sense, meaning, Re-encounter, disclosure, and reconfirmation behaviors.
+  - Surfaced by: AI Slop, Design System, and Unresolved Decisions — repeated-card risk and eleven interaction choices were resolved.
+  - Files: Capture phase widgets, `CaptureSessionController`, draft values, focused unit/widget tests.
+  - Verify: grouped expansion, manual meaning, edited-value replacement, retrieval-first reveal, another-sense escape, and type reconfirmation preserve authored work.
+- [ ] **DT3 (P1, human: ~1 day / Codex: ~2h)** — Visible states and voice — Render the complete state matrix and quiet-confidence copy.
+  - Surfaced by: Interaction State Coverage and User Journey — parallel partial results and emotional/recovery behavior lacked a visible specification.
+  - Files: Capture phase/status widgets, exhaustive failure-copy mapping, controller/widget tests.
+  - Verify: every matrix cell has observable UI, late matches never lose work, and errors name one adjacent recovery action without praise or blame.
+- [ ] **DT4 (P1, human: ~1 day / Codex: ~2h)** — Adaptive access — Implement width-, IME-, text-scale-, keyboard-, and screen-reader behavior.
+  - Surfaced by: Responsive and Accessibility — action reachability and phase semantics were underspecified under constrained height.
+  - Files: Capture layout/focus widgets and narrow/wide/text-scale widget tests.
+  - Verify: 640/760/960 boundaries, Android keyboard insets, 200% text scaling, ordinary traversal, live regions, reduced motion, and 44px minimum targets.
+- [ ] **DT5 (P2, human: ~0.5 day / Codex: ~1h)** — Design documentation and QA — Reconcile the shipped Capture system with durable docs and native visual evidence.
+  - Surfaced by: Design System Alignment and unavailable pre-implementation mockups.
+  - Files: `DESIGN.md`, relevant architecture/QA documentation, screenshot artifacts outside source control where appropriate.
+  - Verify: Linux and Android visual QA covers Entry, large Vocabulary results, Re-encounter, Production with IME, errors, and Discovered in light/dark themes; run `/design-review` after implementation.
+
+**Design verdict:** design-complete with 0 unresolved decisions. Run
+`/design-review` after implementation for native visual QA.
 
 ## GSTACK REVIEW REPORT
 
