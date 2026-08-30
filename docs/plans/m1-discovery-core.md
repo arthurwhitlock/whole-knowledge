@@ -1110,52 +1110,44 @@ product or architecture decisions remain in this specification.
 
 ## GSTACK REVIEW REPORT
 
+| Review | Trigger | Why | Runs | Status | Findings |
+|---|---|---|---:|---|---|
+| CEO Review | `/plan-ceo-review` | Scope and strategy | 1 | CLEAR | Scope-reduced M1 approved; 0 critical gaps |
+| Codex Review | `/codex review` | Independent diff opinion | 0 | — | Not run |
+| Eng Review | `/plan-eng-review` | Architecture and tests (required) | 3 | CLEAR (PLAN) | 18 issues resolved; 0 critical gaps |
+| Design Review | `/plan-design-review` | UI/UX gaps | 2 | CLEAR (FULL, pre-M1) | Latest pass scored 10/10 for the M0 visual system; it predates this M1 plan |
+| DX Review | `/plan-devex-review` | Developer-experience gaps | 0 | — | Not applicable to this user-facing slice |
+| Outside Voice | automatic plan challenge | Independent plan opinion | 0 | SKIPPED | Running under Codex, so nested Codex was skipped; sub-agent fallback was not authorized |
+
 ### Completion summary
 
-| Review step | Runs | Status | Findings |
-|---|---:|---|---|
-| Scope challenge | 1 | SCOPE REDUCED | Full M1 product loop retained; architecture reduced to existing seams |
-| Architecture | 1 | CLEAR | 7 issues found and resolved |
-| Code quality | 1 | CLEAR | 4 issues found and resolved |
-| Tests | 1 | CLEAR | Coverage diagram produced; 5 gaps converted into required suites |
-| Performance | 1 | CLEAR | 2 issues found and resolved; no N+1 or cache requirement |
-| Failure modes | 1 | CLEAR | 0 critical gaps after the plan |
-| NOT in scope | 1 | WRITTEN | Explicit product and engineering deferrals retained |
-| What already exists | 1 | WRITTEN | Existing Capture, Review, repository, shell, and design seams mapped |
-| `TODOS.md` review | 1 | NO CHANGE | 0 new candidates; 6 CEO-approved items retained |
-| Outside voice | 0 | SKIPPED | No sub-agent delegation requested or authorized |
-
-Parallelization: two post-contract lanes can run concurrently (database/repository
-and provider), followed by one sequential Capture integration lane. The conflict
-boundary is explicit in section 39.
-
-Lake Score: **19/19** substantive recommendations chose the complete in-scope
-option. All 18 findings are resolved; the extra recommendation is the accepted
-scope-reduction architecture decision.
+- Step 0: scope reduced to the existing Capture, repository, workspace, Review,
+  and Supabase seams while preserving the full M1 product loop.
+- Architecture: 7 findings resolved.
+- Code quality: 4 findings resolved.
+- Tests: coverage diagram produced; 5 gaps became required suites; 58/58
+  behavioral paths are specified.
+- Performance: 2 findings resolved; no N+1 or persistent-cache requirement.
+- NOT in scope and What already exists: written.
+- `TODOS.md`: 0 new candidates; 6 CEO-approved follow-ups retained.
+- Failure modes: 0 critical gaps after the plan.
+- Parallelization: 2 post-contract lanes can run concurrently, followed by 1
+  sequential Capture integration lane; the conflict boundary is explicit.
+- Lake Score: 19/19 substantive recommendations chose the complete in-scope
+  option. All 18 findings are resolved; the extra recommendation is the
+  accepted scope-reduction decision.
 
 Retrospective: recent fixes in the same area addressed Capture in-flight edits,
 post-create cleanup, Review transition boundaries, adaptive state retention, and
 due refresh. M1 deliberately touches those seams, so the state/event, crash,
-targeted-Review, and full-app regression suites are release requirements rather
-than optional cleanup.
+targeted-Review, and full-app regression suites are release requirements.
 
-### Review readiness dashboard
-
-| Review | Runs | Last run (UTC) | Status | Findings | Required |
-|---|---:|---|---|---|---|
-| Eng Review | 3 | 2026-08-30 00:10 | CLEAR (PLAN) | 18 resolved, 0 open | YES |
-| CEO Review | 1 | 2026-08-29 11:22 | CLEAR | Scope-reduced M1 approved | no |
-| Design Review | 2 | 2026-08-28 10:23 | CLEAR (FULL, pre-M1) | M0 visual system only | no |
-| Adversarial | 0 | — | — | Not run | no |
-| Outside Voice | 0 | — | — | Skipped | no |
-
-The existing full design review is fresh by age but predates this M1 Discovery
-plan, so it does not validate the newly specified phased Capture interaction.
+The Design Review entry is fresh by age but stale for M1 scope: it does not
+validate the newly specified phased Capture interaction. Application
+implementation has not started; this review changed only this plan and local
+gstack review artifacts.
 
 **VERDICT:** CEO + ENG CLEARED — M1 is ready for a dedicated plan-design review
 or, after an explicit implementation request, execution from T1.
-
-Application implementation has not started. This review changed only this plan
-and local gstack review artifacts.
 
 NO UNRESOLVED DECISIONS
