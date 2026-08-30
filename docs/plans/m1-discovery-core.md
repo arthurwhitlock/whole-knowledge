@@ -932,6 +932,45 @@ Re-encounter before any new-item mutation, explains the match, and preserves all
 authored fields. Choosing `Learn another sense` restores those fields and records
 the explicit allow-existing intent; the learner never has to retype them.
 
+### Journey storyboard and voice
+
+Discovery uses quiet confidence: curiosity becomes clarity, clarity becomes
+personal ownership, and completion feels grounded rather than celebratory. Copy
+is concise and factual, never clinical, cute, congratulatory, or corrective.
+
+| Step | Learner does | Intended feeling | Design support |
+|---|---|---|---|
+| 1. Enter | Brings in language encountered elsewhere | Curious; safe to begin without completing a form | One question, one input, visible type suggestion, durable draft |
+| 2. Wait | Lets Whole Knowledge check existing knowledge and English meanings | Oriented; confident that work is happening honestly | Stable document with two named inline progress states and usable partial results |
+| 3. Understand | Chooses the intended Vocabulary sense or explains an Expression | Clear rather than tested | Provider order is transparent, every POS remains available, manual meaning is always legitimate |
+| 4. Re-encounter | Recognizes that this surface already belongs to one or more learned senses | Recognized, not blocked or scolded | `Already in your knowledge`, truthful sense rows, and three purposeful next actions |
+| 5. Produce | Writes an original sentence or deliberately defers | Capable; ownership of the language is beginning | Selected meaning remains visible, prompt is direct, defer is available without becoming dominant |
+| 6. Recover | Meets a validation, provider, Library, draft, or save failure | Protected rather than punished | Authored work stays visible; copy names what could not finish and places one recovery action beside it |
+| 7. Complete | Sees the saved item and its real review timing | Quietly satisfied; ready to continue or leave | `Discovered`, learner-authored content, truthful timing, no praise theater, `Done` and `Capture another` |
+| 8. Return | Encounters the item later through Today or targeted Review | Continuity; the earlier effort mattered | The same language, meaning, production, and factual schedule reappear in the existing learning loop |
+
+Time-horizon design:
+
+- **First 5 seconds:** the learner sees one obvious question, knows Capture is
+  the active destination, and can begin without reading instructions.
+- **First 5 minutes:** lookup, selection, production, recovery, and completion
+  feel like one continuous learning event; no phase resembles account setup or
+  data administration.
+- **Five-year relationship:** repeated use remains calm because the product does
+  not praise routine actions, manufacture urgency, or turn accumulated language
+  into a reward economy. Trust comes from preserved work and truthful evidence.
+
+Voice rules:
+
+- Prefer concrete orientation and action: `Finding English meanings`, `Choose
+  the meaning you encountered`, `Use it in your own sentence`, `Discovered`.
+- Never use `Great job`, `Amazing`, `You mastered`, streak language, exclamation
+  marks, or corrective language for choosing manual meaning or deferring.
+- Recovery copy describes the system limitation, not learner failure, and names
+  the next safe action in the same visual group.
+- Keep prompts to one sentence. Explanations appear only when a state would
+  otherwise be ambiguous, and they disappear when the ambiguity is resolved.
+
 ## 33. Explicitly NOT in M1
 
 - Today’s Captures surface or vertical swipe navigation;
