@@ -23,10 +23,8 @@ void main() {
     await tester.tap(find.text('Capture').last);
     await tester.pumpAndSettle();
 
-    final save = find.byKey(const ValueKey('save-capture'));
-    await tester.ensureVisible(save);
-    await tester.pumpAndSettle();
-    await tester.tap(save);
+    final discover = find.byKey(const ValueKey('discover-language'));
+    await tester.tap(discover);
     await tester.pumpAndSettle();
 
     final content = find.byKey(const ValueKey('capture-content'));

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:whole_knowledge/app/app.dart';
 import 'package:whole_knowledge/application/capture/capture_draft.dart';
+import 'package:whole_knowledge/application/capture/discovery_failure.dart';
 import 'package:whole_knowledge/domain/learning/review_attempt.dart';
 
 import 'support/fakes.dart';
@@ -145,14 +146,9 @@ void main() {
 
     await tester.tap(find.text('Capture').last);
     await tester.pumpAndSettle();
-    expect(find.text('What did you find?'), findsOneWidget);
-    expect(find.text('Make it understandable'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('capture-supporting-details')),
-      findsOneWidget,
-    );
-    await tester.ensureVisible(find.byKey(const ValueKey('save-capture')));
-    await tester.tap(find.byKey(const ValueKey('save-capture')));
+    expect(find.text('What did you encounter?'), findsOneWidget);
+    expect(find.byKey(const ValueKey('capture-meaning')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('discover-language')));
     await tester.pump();
     expect(find.text('Enter the language you encountered.'), findsOneWidget);
 
@@ -160,16 +156,27 @@ void main() {
       find.byKey(const ValueKey('capture-content')),
       '  pourtant  ',
     );
+    await tester.tap(find.byKey(const ValueKey('enter-meaning-manually')));
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey('capture-meaning')),
       ' however ',
     );
-    await tester.ensureVisible(find.byKey(const ValueKey('save-capture')));
-    await tester.tap(find.byKey(const ValueKey('save-capture')));
+    await tester.pump();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('continue-to-production')),
+    );
+    await tester.tap(find.byKey(const ValueKey('continue-to-production')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('defer-production')));
+    await tester.tap(find.byKey(const ValueKey('defer-production')));
     await tester.pumpAndSettle();
 
-    expect(learningItems.lastCapture?.content, 'pourtant');
-    expect(learningItems.lastCapture?.meaning, 'however');
+    expect(learningItems.items.first.content, 'pourtant');
+    expect(learningItems.items.first.meaning, 'however');
+    expect(find.text('Discovered'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('discovery-done')));
+    await tester.pumpAndSettle();
     expect(find.text('1 item ready for review.'), findsOneWidget);
   });
 
@@ -184,11 +191,12 @@ void main() {
     );
 
     await tester.pumpWidget(WholeKnowledgeApp(dependencies: dependencies));
-    await tester.pumpAndSettle();
+    await _pumpFrames(tester);
 
     expect(find.text('Draft restored'), findsOneWidget);
     expect(find.text('restored word'), findsOneWidget);
     expect(find.text('restored meaning'), findsOneWidget);
+    expect(find.byKey(const ValueKey('first-production')), findsOneWidget);
   });
 
   testWidgets('choosing an English sense fills editable meaning and POS', (
@@ -204,13 +212,7 @@ void main() {
       find.byKey(const ValueKey('capture-content')),
       'record',
     );
-    await tester.pump();
-    final lookupButton = tester.widget<ShadButton>(
-      find.byKey(const ValueKey('lookup-meaning')),
-    );
-    expect(lookupButton.enabled, isTrue);
-    await tester.ensureVisible(find.byKey(const ValueKey('lookup-meaning')));
-    await tester.tap(find.byKey(const ValueKey('lookup-meaning')));
+    await tester.tap(find.byKey(const ValueKey('discover-language')));
     await tester.pumpAndSettle();
     expect(
       (dependencies.lexicalProvider as FakeLexicalProvider).lookupCalls,
@@ -222,7 +224,7 @@ void main() {
     await tester.tap(verbSense);
     await tester.pumpAndSettle();
 
-    expect(find.text('To preserve information.'), findsOneWidget);
+    expect(find.text('To preserve information.'), findsWidgets);
     expect(find.text('verb'), findsOneWidget);
     expect(find.text('Test dictionary attribution'), findsOneWidget);
   });
@@ -341,7 +343,7 @@ void main() {
     final dependencies = fakeDependencies();
     final learningItems =
         dependencies.learningItems as FakeLearningItemRepository;
-    learningItems.createGate = Completer<void>();
+    learningItems.discoveryGate = Completer<void>();
     await tester.pumpWidget(WholeKnowledgeApp(dependencies: dependencies));
     await tester.pumpAndSettle();
 
@@ -349,27 +351,37 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey('capture-content')),
-      'still here',
+      'still here expression',
     );
-    await tester.ensureVisible(find.byKey(const ValueKey('save-capture')));
-    await tester.tap(find.byKey(const ValueKey('save-capture')));
-    await tester.pump();
-
-    expect(
-      tester
-          .widget<ShadTextarea>(find.byKey(const ValueKey('capture-content')))
-          .enabled,
-      isFalse,
-    );
-    // The button is intentionally disabled while the create call is in flight.
-    await tester.tap(
-      find.byKey(const ValueKey('save-capture')),
-      warnIfMissed: false,
+    await tester.tap(find.byKey(const ValueKey('enter-meaning-manually')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('capture-meaning')),
+      'a meaning',
     );
     await tester.pump();
-    expect(learningItems.createCalls, 1);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('continue-to-production')),
+    );
+    await tester.tap(find.byKey(const ValueKey('continue-to-production')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('first-production')),
+      'I can use it here.',
+    );
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('complete-discovery')),
+    );
+    await tester.tap(find.byKey(const ValueKey('complete-discovery')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
-    learningItems.createGate!.complete();
+    expect(find.text('Saving discovery'), findsOneWidget);
+    expect(find.byKey(const ValueKey('capture-back')), findsNothing);
+    await tester.pump();
+    expect(learningItems.discoveryCalls, 1);
+
+    learningItems.discoveryGate!.complete();
     await tester.pumpAndSettle();
   });
 
@@ -380,7 +392,9 @@ void main() {
     final dependencies = fakeDependencies();
     final learningItems =
         dependencies.learningItems as FakeLearningItemRepository;
-    learningItems.shouldFailCreate = true;
+    learningItems.discoveryFailure = const DiscoveryFailure(
+      DiscoveryFailureCode.discoveryOutcomeUnknown,
+    );
     await tester.pumpWidget(WholeKnowledgeApp(dependencies: dependencies));
     await tester.pumpAndSettle();
 
@@ -390,10 +404,15 @@ void main() {
       find.byKey(const ValueKey('capture-content')),
       'preserved language',
     );
+    await tester.tap(find.byKey(const ValueKey('enter-meaning-manually')));
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey('capture-meaning')),
       'preserved meaning',
     );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('encounter-details-toggle')));
+    await tester.pump();
     await tester.enterText(
       find.byKey(const ValueKey('capture-context')),
       'preserved context',
@@ -402,25 +421,38 @@ void main() {
       find.byKey(const ValueKey('capture-source')),
       'preserved source',
     );
-    await tester.ensureVisible(find.byKey(const ValueKey('save-capture')));
-    await tester.tap(find.byKey(const ValueKey('save-capture')));
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('continue-to-production')),
+    );
+    await tester.tap(find.byKey(const ValueKey('continue-to-production')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('first-production')),
+      'preserved production',
+    );
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('complete-discovery')),
+    );
+    await tester.tap(find.byKey(const ValueKey('complete-discovery')));
     await tester.pumpAndSettle();
 
     expect(find.text('preserved language'), findsOneWidget);
     expect(find.text('preserved meaning'), findsOneWidget);
     expect(find.text('preserved context'), findsOneWidget);
     expect(find.text('preserved source'), findsOneWidget);
+    expect(find.text('“preserved production”'), findsOneWidget);
     expect(
-      find.text('Could not save this item. Your input is still here.'),
+      find.text(
+        'Could not confirm this discovery. Retry safely with the same draft.',
+      ),
       findsOneWidget,
     );
 
-    learningItems.shouldFailCreate = false;
-    await tester.ensureVisible(find.byKey(const ValueKey('save-capture')));
-    await tester.tap(find.byKey(const ValueKey('save-capture')));
+    learningItems.discoveryFailure = null;
+    await tester.tap(find.byKey(const ValueKey('retry-discovery-submission')));
     await tester.pumpAndSettle();
-    expect(learningItems.createCalls, 2);
-    expect(learningItems.lastCapture?.content, 'preserved language');
+    expect(learningItems.discoveryCalls, 2);
+    expect(learningItems.items.first.content, 'preserved language');
   });
 
   testWidgets('preserves the first capture draft during a background reload', (
@@ -751,8 +783,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.bySemanticsLabel('Language, required'), findsOneWidget);
-    await tester.ensureVisible(find.byKey(const ValueKey('save-capture')));
-    await tester.tap(find.byKey(const ValueKey('save-capture')));
+    await tester.tap(find.byKey(const ValueKey('discover-language')));
     await tester.pump();
     expect(find.text('Enter the language you encountered.'), findsOneWidget);
     semantics.dispose();
@@ -787,6 +818,12 @@ Future<void> _enterProduction(WidgetTester tester) async {
   await tester.pump();
   await tester.tap(find.text('Continue to production'));
   await tester.pump();
+}
+
+Future<void> _pumpFrames(WidgetTester tester) async {
+  for (var index = 0; index < 8; index++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
 }
 
 Future<void> _setViewport(WidgetTester tester, Size size) async {

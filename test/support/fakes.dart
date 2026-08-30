@@ -54,6 +54,7 @@ final class FakeLearningItemRepository implements LearningItemRepository {
   int listAllCalls = 0;
   int listDueCalls = 0;
   int listPageCalls = 0;
+  int discoveryCalls = 0;
   final Map<String, DiscoverySubmission> discoverySubmissions = {};
 
   @override
@@ -104,6 +105,7 @@ final class FakeLearningItemRepository implements LearningItemRepository {
   Future<DiscoveryCompletion> completeDiscovery(
     DiscoverySubmission submission,
   ) async {
+    discoveryCalls += 1;
     await discoveryGate?.future;
     if (discoveryFailure case final failure?) throw failure;
     final normalized = submission.normalized();

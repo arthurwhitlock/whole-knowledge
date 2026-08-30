@@ -235,6 +235,9 @@ class _LearningWorkspaceState extends State<LearningWorkspace>
                 reviewPaused:
                     _review.isPaused &&
                     _reviewOrigin == ReviewLaunchOrigin.today,
+                captureReviewPaused:
+                    _review.isPaused &&
+                    _reviewOrigin == ReviewLaunchOrigin.capture,
                 reviewCompleted: _review.completed,
                 onStartReview: _startDueReview,
                 onResumeReview: _resumeReview,
@@ -345,6 +348,7 @@ class _WorkspaceContent extends StatelessWidget {
     required this.onCaptured,
     required this.onQuickCapture,
     required this.reviewPaused,
+    required this.captureReviewPaused,
     required this.reviewCompleted,
     required this.onStartReview,
     required this.onResumeReview,
@@ -361,6 +365,7 @@ class _WorkspaceContent extends StatelessWidget {
   final VoidCallback onCaptured;
   final VoidCallback onQuickCapture;
   final bool reviewPaused;
+  final bool captureReviewPaused;
   final bool reviewCompleted;
   final VoidCallback onStartReview;
   final VoidCallback onResumeReview;
@@ -387,6 +392,8 @@ class _WorkspaceContent extends StatelessWidget {
           controller: capture,
           onCaptured: onCaptured,
           onTestItem: onStartTargetedReview,
+          reviewPaused: captureReviewPaused,
+          onResumeReview: onResumeReview,
         ),
         if (libraryVisited)
           LibraryScreen(

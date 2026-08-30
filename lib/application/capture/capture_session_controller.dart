@@ -50,6 +50,10 @@ final class CaptureSessionController {
         CaptureVocabularySenses(:final lexical) => lexical is LexicalPending,
         _ => false,
       };
+  LearningItemKind get suggestedKind =>
+      DiscoveryValidation.suggestKind(draft.content);
+  bool get kindWasOverridden => _kindOverridden;
+  LibraryOutcome get libraryOutcome => _libraryOutcome;
   bool restored = false;
   String? contentError;
   String? saveError;
@@ -171,8 +175,23 @@ final class CaptureSessionController {
   }
 
   void updateKind(LearningItemKind kind) {
+    if (draft.kind == kind && _kindOverridden) return;
+    final priorState = _state;
     _kindOverridden = true;
-    update(draft.copyWith(kind: kind));
+    update(
+      draft.copyWith(
+        kind: kind,
+        clearPartOfSpeech: kind == LearningItemKind.expression,
+      ),
+    );
+    final wasMeaningOrProduction = switch (priorState) {
+      CaptureVocabularySenses() ||
+      CaptureExpressionMeaning() ||
+      CaptureProduction() => true,
+      _ => false,
+    };
+    if (!wasMeaningOrProduction) return;
+    _resumeMeaningPhase(lookupIfMissing: kind == LearningItemKind.vocabulary);
   }
 
   void updateEncounterDetails({String? context, String? source}) {
@@ -208,6 +227,33 @@ final class CaptureSessionController {
       futures.add(_loadLexical(generation));
     }
     await Future.wait(futures);
+  }
+
+  Future<void> discoverManually() async {
+    final error = DiscoveryValidation.validateContent(draft.content);
+    if (error != null) {
+      contentError = error;
+      _notify();
+      return;
+    }
+    contentError = null;
+    saveError = null;
+    lookupError = null;
+    final generation = ++_generation;
+    _libraryOutcome = const LibraryPending();
+    if (draft.kind == LearningItemKind.vocabulary) {
+      _setState(
+        CaptureVocabularySenses(
+          draft,
+          lexical: const LexicalSkipped(),
+          library: _libraryOutcome,
+          meaningChoice: const MeaningChoice(kind: MeaningChoiceKind.manual),
+        ),
+      );
+    } else {
+      _setState(CaptureExpressionMeaning(draft, library: _libraryOutcome));
+    }
+    await _loadLibrary(generation);
   }
 
   Future<void> retryLibrary() async {
@@ -352,7 +398,9 @@ final class CaptureSessionController {
           lexical: lexical,
           library: library,
           meaningChoice: MeaningChoice(
-            kind: draft.meaning.trim().isEmpty
+            kind: lexical is LexicalFailed || lexical is LexicalSkipped
+                ? MeaningChoiceKind.manual
+                : draft.meaning.trim().isEmpty
                 ? MeaningChoiceKind.none
                 : MeaningChoiceKind.manual,
           ),
@@ -610,6 +658,24 @@ final class CaptureSessionController {
   void learnAnotherSense() {
     if (_state is! CaptureReEncounter) return;
     _allowExistingSurface = true;
+    _libraryOutcome = const LibraryNoMatch();
+    _resumeMeaningPhase(lookupIfMissing: true);
+  }
+
+  void back() {
+    final current = _state;
+    if (current is CaptureSaving ||
+        current is CaptureReconciling ||
+        current is CaptureDiscovered ||
+        current is CaptureRestoring ||
+        current is CaptureEntry) {
+      return;
+    }
+    if (current is CaptureProduction) {
+      _resumeMeaningPhase();
+      return;
+    }
+    _generation += 1;
     _setState(CaptureEntry(draft));
   }
 
@@ -756,6 +822,7 @@ final class CaptureSessionController {
         case DiscoveryCreated(:final item) || DiscoveryReplayed(:final item):
           await _clearAfterSuccessfulCreate();
           _allowExistingSurface = false;
+          restored = false;
           final empty = CaptureDraft(kind: draft.kind);
           _setState(CaptureDiscovered(empty, item: item));
           return item;
@@ -986,6 +1053,31 @@ final class CaptureSessionController {
   void _setState(CaptureSessionState next) {
     _state = next;
     _notify();
+  }
+
+  void _resumeMeaningPhase({bool lookupIfMissing = false}) {
+    if (draft.kind == LearningItemKind.expression) {
+      _setState(CaptureExpressionMeaning(draft, library: _libraryOutcome));
+      return;
+    }
+    final lexical = _activeLookup == null
+        ? const LexicalPending() as LexicalOutcome
+        : LexicalFound(_activeLookup!);
+    _setState(
+      CaptureVocabularySenses(
+        draft,
+        lexical: lexical,
+        library: _libraryOutcome,
+        meaningChoice: MeaningChoice(
+          kind: draft.meaning.trim().isEmpty
+              ? MeaningChoiceKind.none
+              : MeaningChoiceKind.manual,
+        ),
+      ),
+    );
+    if (lookupIfMissing && _activeLookup == null) {
+      unawaited(_loadLexical(_generation));
+    }
   }
 
   void _notify() {
