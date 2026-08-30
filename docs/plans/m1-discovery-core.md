@@ -265,6 +265,14 @@ Visual treatment:
   returns to the compact summary without changing the selected provider row;
   the authored values, rather than the raw provider text, are what the learner
   reviews and ultimately persists.
+- Selecting a different provider row switches immediately only while the current
+  meaning still equals its copied definition. If the learner edited it, the
+  proposed row exposes an inline `Replace your edited meaning with this sense?`
+  confirmation with `Keep editing` and `Replace`; the original row remains
+  selected until Replace is activated. Keep editing returns focus to the editor.
+  Replace copies the new sense, and any existing production stays visible but
+  becomes unconfirmed under the rule above. No modal, transient Undo, or silent
+  meaning/sense mismatch is permitted.
 - `Enter meaning manually` appears exactly once after the final POS group as a
   persistent ghost action, never once per group. Activating it reveals a
   visibly labeled editor in place and moves focus to that editor. A zero-result
