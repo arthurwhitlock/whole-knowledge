@@ -1482,41 +1482,38 @@ an additive estimate.
 | Review | Trigger | Why | Runs | Status | Findings |
 |---|---|---|---:|---|---|
 | CEO Review | `/plan-ceo-review` | Scope and strategy | 1 | CLEAR | Scope-reduced M1 approved; 0 critical gaps |
-| Codex Review | `/codex review` | Independent diff opinion | 0 | — | Not run |
+| Codex Review | `/codex review` | Independent second opinion | 0 | — | Not run |
 | Eng Review | `/plan-eng-review` | Architecture and tests (required) | 3 | CLEAR (PLAN) | 18 issues resolved; 0 critical gaps |
-| Design Review | `/plan-design-review` | UI/UX gaps | 2 | CLEAR (FULL, pre-M1) | Latest pass scored 10/10 for the M0 visual system; it predates this M1 plan |
+| Design Review | `/plan-design-review` | UI/UX gaps | 3 | CLEAR (FULL) | Score 8/10 → 10/10; 17 decisions resolved; 0 deferred |
 | DX Review | `/plan-devex-review` | Developer-experience gaps | 0 | — | Not applicable to this user-facing slice |
-| Outside Voice | automatic plan challenge | Independent plan opinion | 0 | SKIPPED | Running under Codex, so nested Codex was skipped; sub-agent fallback was not authorized |
 
 ### Completion summary
 
-- Step 0: scope reduced to the existing Capture, repository, workspace, Review,
-  and Supabase seams while preserving the full M1 product loop.
-- Architecture: 7 findings resolved.
-- Code quality: 4 findings resolved.
-- Tests: coverage diagram produced; 5 gaps became required suites; 58/58
-  behavioral paths are specified.
-- Performance: 2 findings resolved; no N+1 or persistent-cache requirement.
-- NOT in scope and What already exists: written.
-- `TODOS.md`: 0 new candidates; 6 CEO-approved follow-ups retained.
-- Failure modes: 0 critical gaps after the plan.
-- Parallelization: 2 post-contract lanes can run concurrently, followed by 1
-  sequential Capture integration lane; the conflict boundary is explicit.
-- Lake Score: 19/19 substantive recommendations chose the complete in-scope
-  option. All 18 findings are resolved; the extra recommendation is the
-  accepted scope-reduction decision.
+- System audit: `DESIGN.md` exists; M1 covers six Capture phases, adaptive
+  navigation prominence, Re-encounter, and targeted Review handoff.
+- Step 0: initial completeness 8/10; all seven passes selected.
+- Information Architecture: 8/10 → 10/10.
+- Interaction State Coverage: 7/10 → 10/10.
+- User Journey and Emotional Arc: 7/10 → 10/10.
+- AI Slop Risk: 9/10 → 10/10; classifier APP UI; no hard-rejection pattern.
+- Design System Alignment: 8/10 → 10/10.
+- Responsive and Accessibility: 8/10 → 10/10.
+- Unresolved Design Decisions: 11 resolved, 0 deferred.
+- NOT in scope: retained in section 33.
+- What already exists: retained and extended in section 18.
+- `TODOS.md`: 0 new candidates; six CEO-approved follow-ups unchanged.
+- Mockups: 0 generated and 0 approved because the installed gstack designer had
+  no configured OpenAI API key; text-based fallback completed every pass.
+- Implementation tasks: five design-review slices written to the plan and JSONL.
+- Overall design score: 8/10 → 10/10.
 
-Retrospective: recent fixes in the same area addressed Capture in-flight edits,
-post-create cleanup, Review transition boundaries, adaptive state retention, and
-due refresh. M1 deliberately touches those seams, so the state/event, crash,
-targeted-Review, and full-app regression suites are release requirements.
+Retrospective: the earlier M0 design pass and native QA established the visual
+system but did not cover M1's phased Discovery interaction. This pass now fixes
+its hierarchy, visible states, emotional register, component usage, adaptive
+behavior, and detailed interaction choices. No application code was implemented.
 
-The Design Review entry is fresh by age but stale for M1 scope: it does not
-validate the newly specified phased Capture interaction. Application
-implementation has not started; this review changed only this plan and local
-gstack review artifacts.
-
-**VERDICT:** CEO + ENG CLEARED — M1 is ready for a dedicated plan-design review
-or, after an explicit implementation request, execution from T1.
+**VERDICT:** CEO + ENG + DESIGN CLEARED — M1 is design-complete; re-run the
+engineering plan review before implementation because these interaction details
+postdate the latest architecture pass.
 
 NO UNRESOLVED DECISIONS
