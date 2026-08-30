@@ -227,6 +227,24 @@ ranking.
   it unconfirmed. Editing it or selecting `This sentence still fits` is required
   before completion.
 
+Visual treatment:
+
+- POS groups are typographic sections, not cards. Each has one concise label,
+  its visible senses, and a left-aligned `Show N more` ghost action when needed.
+- Senses are full-width editorial selection rows separated by neutral 1px
+  dividers. Rows have at least a 44px interaction target but no permanent outer
+  border, shadow, icon badge, or individually rounded container.
+- The definition is 16px body text. One provider example, when available, sits
+  beneath it in readable muted body text; it never shrinks into low-contrast
+  metadata or competes with the definition.
+- Hover may add only the semantic accent-subtle surface. Keyboard focus uses the
+  visible semantic focus ring. Selection uses accent-subtle fill plus the same
+  narrow accent marker already established for selected Library rows; focus and
+  selection remain distinguishable and semantic.
+- Expansion occurs within its POS group without collapsing other groups or
+  moving the current selection. Long results gain whitespace and section
+  rhythm, not repeated card chrome.
+
 This keeps the complete entry available while making intended-sense selection,
 not dictionary browsing, the task.
 
