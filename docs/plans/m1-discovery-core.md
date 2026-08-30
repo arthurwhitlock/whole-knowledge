@@ -174,8 +174,13 @@ Rules:
   persisted fields with a restrained `Draft restored` status. Lookup-only state
   returns to Entry with the term preserved and requires Discover again.
 - Optional encounter context and source remain available only behind a later
-  `Add encounter details` disclosure. Existing capabilities are preserved but
-  do not compete with Discovery.
+  `Add encounter details` disclosure. It appears after a valid intended meaning,
+  expands context and source in place, and stays open once the learner uses it.
+  Restoration opens it automatically when either field contains authored text;
+  validation opens it and focuses the affected field rather than leaving an
+  error hidden. Existing capabilities are preserved but do not compete with
+  Discovery. The disclosure is not shown at Entry and never opens a sheet,
+  dialog, or second navigation surface.
 
 ## 5. Type detection
 
