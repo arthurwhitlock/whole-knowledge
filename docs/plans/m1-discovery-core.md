@@ -1198,11 +1198,30 @@ Required test suites:
    items, prove Show meaning writes no attempt, resume a paused origin-owned
    session without replacement, resume Learn another sense, and keep the
    Today-origin due flow unchanged.
-7. **Deterministic full-app spine `[→E2E]`:** add the Flutter SDK
-   `integration_test` dependency and run new Vocabulary → intended sense → first
-   production → atomic save → not immediately due → re-enter → targeted Review
-   on Linux and Android against disposable local Supabase with an injected
-   deterministic lexical provider. Test the real external adapter separately.
+7. **Three deterministic full-app journeys `[→E2E]`:** add the Flutter SDK
+   `integration_test` dependency and run these isolated cases from
+   `integration_test/discovery_flow_test.dart` on Linux and Android against
+   disposable local Supabase with an injected deterministic lexical provider:
+
+   1. `vocabulary_production_reencounter_targeted_review`: Vocabulary → intended
+      provider sense → first production → atomic save → persisted future schedule
+      is absent from due results → exact re-entry hides meaning → targeted Review
+      → rated completion sets authoritative last-review time.
+   2. `expression_defer_is_due_now`: Expression → manual meaning → defer
+      production → atomic save → Discovered says Ready to practice now → Today
+      contains the item as immediately due.
+   3. `multiple_senses_allow_explicit_additional_sense`: seed two same-surface
+      active senses → exact re-entry starts unselected and hides both answers →
+      preselection Learn another sense → choose a new intended sense → atomic
+      save with explicit allow-existing intent → all three senses return in
+      deterministic order without mutating the first two.
+
+   Each case uses a distinct authenticated fixture owner or a full local reset,
+   controls server-visible setup time where assertions require ordering, and
+   cleans up through the disposable stack. Android uses the configured emulator
+   host address for the same local project; it does not switch to hosted data.
+   The real EnglishDictionaryAPI adapter remains a separate bounded protocol
+   suite and is never called from deterministic end-to-end tests.
 
 **Critical regression coverage:** replace the existing assumption that every
 zero-review item is due. At the domain, fake, repository, and database/integration
@@ -1217,7 +1236,7 @@ flutter analyze
 flutter test
 supabase test db
 flutter test integration_test/discovery_flow_test.dart -d linux
-# Run the same integration journey on the configured Android device/emulator.
+# Run the same three integration journeys on the configured Android emulator/device.
 flutter build linux
 flutter build apk --debug
 ```
@@ -1601,7 +1620,7 @@ merge-conflict cost outweighs parallelism. T8 and T9 follow the integrated tree.
 - [ ] **T8 (P1, human: ~2.5 days / Codex: ~5h)** — Verification — Add the full layered suite and run both first-class targets.
   - Surfaced by: Test D15–D19, the mandatory due-state regression, and the design review's detailed interaction matrix.
   - Files: unit/adapter/database/two-client suites, the seven section 29 phase/accessibility widget files, `integration_test/discovery_flow_test.dart`, and the Flutter SDK integration-test dev dependency.
-  - Verify: all commands in section 29, deterministic Linux and Android Discovery spine, critical due-state regression, authored-work preservation, late-match interruption, meaning reveal/no-write behavior, relative timing at same-day/midnight/tomorrow/far-date/daylight-saving boundaries plus resume refresh, and full light/dark native visual QA across Entry, large Vocabulary results, Re-encounter, Production with IME, errors, and Discovered.
+  - Verify: all commands in section 29, all three isolated deterministic Discovery journeys on Linux and Android, critical due-state regression, authored-work preservation, late-match interruption, meaning reveal/no-write behavior, relative timing at same-day/midnight/tomorrow/far-date/daylight-saving boundaries plus resume refresh, and full light/dark native visual QA across Entry, large Vocabulary results, Re-encounter, Production with IME, errors, and Discovered.
 - [ ] **T9 (P1, human: ~1 day / Codex: ~2h)** — Reliability/docs/rollout — Add privacy-safe diagnostics and update durable documentation; deploy only under separate approval.
   - Surfaced by: Error/rescue, observability, deployment, stale-diagram, and design-system alignment reviews.
   - Files: failure boundaries, troubleshooting runbook, `DESIGN.md`, `docs/architecture.md`, `README.md`, later grant-hardening migration.
