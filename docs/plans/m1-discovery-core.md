@@ -906,6 +906,32 @@ No destructive down migration or historical-data rewrite is required.
 - Native Back preserves the durable draft; destructive restart/discard remains
   explicit and confirmed.
 
+### Capture interaction-state presentation
+
+Loading and recovery replace only the affected portion of the focused document.
+The subject header and authored content stay stable; Capture never blanks into a
+full-screen spinner after startup. Independent Library and dictionary work is
+shown independently so one slow or failed service does not hide usable results.
+
+| Feature | Loading | Empty | Error | Success | Partial |
+|---|---|---|---|---|---|
+| Draft restoration | Workspace startup keeps the native shell stable and shows one restrained adaptive progress indicator | Clean Entry with focused language input | Entry remains usable with `Could not restore this draft` as an inline live region | Resume the furthest authored phase with `Draft restored` beneath orientation | Lookup-only state restores the term at Entry and says Discover is required again |
+| Entry parallel reads | Keep term/type orientation visible; show separate `Checking your Library` and `Finding English meanings` rows in the future content positions | No exact match continues to the correct Vocabulary or Expression task | Each failed row keeps an adjacent Retry; Library failure gates creation, while lookup failure exposes manual meaning | Exact matches open Re-encounter; otherwise grouped senses or manual Expression meaning replaces progress in place | A completed result becomes usable immediately while the unresolved row remains visibly pending |
+| Vocabulary senses | Preserve already returned POS groups while a retried lookup is pending | `No English entry found` followed by the visible manual-meaning editor | Provider-specific stable copy, Retry, and manual meaning remain together | All POS headings, two senses per group, selection, examples, and per-group expansion | If Library is unresolved, selection and authored work continue but final creation remains gated |
+| Expression meaning | No remote lookup; draft-write activity does not replace the editor | Blank editor with visible required label and concise prompt | Field error stays below the editor and receives focus on submission | Valid authored meaning reveals the Production action | Library-pending or failed status remains visible without disabling meaning entry |
+| Re-encounter | Keep subject and any returned learned-sense rows while refreshing a stale match | Explain that the item is no longer available, then return to Discovery with the draft intact | Inline retry or session-recovery action adjacent to the failed sense | One or more learned-sense rows with sense-scoped actions | A late exact match interrupts new-item completion with `Already in your knowledge`; authored meaning and production stay in the draft and resume if `Learn another sense` is chosen |
+| Production | No remote loading; local draft security status stays adjacent without covering the editor | Empty required editor on the primary path; defer remains visible and secondary | Validation or draft-write failure preserves the sentence, focuses the affected control, and offers Retry | Confirmed original sentence enables `Complete discovery` | A changed meaning preserves the sentence but marks it unconfirmed until edited or explicitly reconfirmed |
+| Save and reconciliation | Freeze controls and payload; primary action says `Saving` or `Confirming discovery` with restrained progress | — | Definitive validation returns to the named field; unknown outcome keeps same-ID Retry; payload conflict stops blind retry | Transition once to Discovered after new save or identical replay reconciliation | Library-check gating explains why save is unavailable and places Retry beside that status |
+| Discovered | — | — | Cleanup failure never implies save failure or offers duplicate submission | Announced confirmation with saved content, truthful review timing, `Done`, and `Capture another` | Deferred production substitutes `Ready to practice now` and omits an empty quotation block |
+
+When dictionary data appears before the Library result, the learner may select a
+sense, enter a manual meaning, add details, and draft production. `Complete
+discovery` remains unavailable with the adjacent reason `Check your Library
+before saving`. If a late Library result finds an exact match, Capture moves to
+Re-encounter before any new-item mutation, explains the match, and preserves all
+authored fields. Choosing `Learn another sense` restores those fields and records
+the explicit allow-existing intent; the learner never has to retype them.
+
 ## 33. Explicitly NOT in M1
 
 - Today’s Captures surface or vertical swipe navigation;
