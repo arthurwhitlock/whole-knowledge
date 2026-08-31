@@ -105,6 +105,7 @@ class _CaptureEntryCheckingViewState extends State<CaptureEntryCheckingView> {
     final alternateLabel = alternate == LearningItemKind.vocabulary
         ? 'Vocabulary discovery'
         : 'Expression';
+    final enlarged = MediaQuery.textScalerOf(context).scale(1) > 1.3;
     return CapturePageLayout(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,7 +175,7 @@ class _CaptureEntryCheckingViewState extends State<CaptureEntryCheckingView> {
                 ),
                 ShadButton.link(
                   key: const ValueKey('change-discovery-type'),
-                  height: 0,
+                  height: enlarged ? 0 : 48,
                   onPressed: () => controller.updateKind(alternate),
                   child: CaptureButtonLabel('Use $alternateLabel'),
                 ),
@@ -188,14 +189,14 @@ class _CaptureEntryCheckingViewState extends State<CaptureEntryCheckingView> {
             CaptureAdaptiveActions(
               primary: ShadButton(
                 key: const ValueKey('discover-language'),
-                height: 0,
+                height: enlarged ? 0 : 48,
                 onPressed: _discover,
                 trailing: const Icon(Icons.arrow_forward, size: 18),
                 child: const CaptureButtonLabel('Discover'),
               ),
               secondary: ShadButton.ghost(
                 key: const ValueKey('enter-meaning-manually'),
-                height: 0,
+                height: enlarged ? 0 : 48,
                 onPressed: _discoverManually,
                 child: const CaptureButtonLabel('Enter meaning manually'),
               ),

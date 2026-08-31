@@ -98,6 +98,7 @@ class CaptureSubject extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
+    final enlarged = MediaQuery.textScalerOf(context).scale(1) > 1.3;
     final label = kind == LearningItemKind.vocabulary
         ? 'Vocabulary'
         : 'Expression';
@@ -129,7 +130,7 @@ class CaptureSubject extends StatelessWidget {
             if (onChangeKind != null)
               ShadButton.link(
                 key: const ValueKey('change-discovery-type'),
-                height: 0,
+                height: enlarged ? 0 : 48,
                 onPressed: () => onChangeKind!(alternate),
                 child: CaptureButtonLabel('Use $alternateLabel'),
               ),
@@ -215,25 +216,28 @@ class CaptureInlineError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
-    return AnimatedSize(
-      duration: AppMotion.responsive(context, AppMotion.standard),
-      curve: AppMotion.standardCurve,
-      alignment: Alignment.topCenter,
-      child: message == null
-          ? const SizedBox.shrink(key: ValueKey('no-capture-error'))
-          : Padding(
-              key: ValueKey(message),
-              padding: const EdgeInsets.only(top: AppSpacing.compact),
-              child: Semantics(
-                liveRegion: true,
-                child: Text(
-                  message!,
-                  style: theme.textTheme.small.copyWith(
-                    color: theme.colorScheme.destructive,
-                  ),
+    final content = message == null
+        ? const SizedBox.shrink(key: ValueKey('no-capture-error'))
+        : Padding(
+            key: ValueKey(message),
+            padding: const EdgeInsets.only(top: AppSpacing.compact),
+            child: Semantics(
+              liveRegion: true,
+              child: Text(
+                message!,
+                style: theme.textTheme.small.copyWith(
+                  color: theme.colorScheme.destructive,
                 ),
               ),
             ),
+          );
+    final duration = AppMotion.responsive(context, AppMotion.standard);
+    if (duration == Duration.zero) return content;
+    return AnimatedSize(
+      duration: duration,
+      curve: AppMotion.standardCurve,
+      alignment: Alignment.topCenter,
+      child: content,
     );
   }
 }
@@ -330,6 +334,51 @@ class CaptureLibraryStatus extends StatelessWidget {
         label: 'Already in your Library',
       ),
     };
+  }
+}
+
+class CaptureStaleProductionNotice extends StatelessWidget {
+  const CaptureStaleProductionNotice({
+    required this.production,
+    required this.confirmed,
+    required this.canConfirm,
+    required this.onConfirm,
+    super.key,
+  });
+
+  final String production;
+  final bool confirmed;
+  final bool canConfirm;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    if (production.trim().isEmpty) return const SizedBox.shrink();
+    final theme = ShadTheme.of(context);
+    return Column(
+      key: const ValueKey('preserved-production'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Existing production', style: theme.textTheme.label),
+        const SizedBox(height: AppSpacing.compact),
+        Text('“$production”', style: theme.textTheme.p),
+        if (!confirmed) ...[
+          const SizedBox(height: AppSpacing.compact),
+          Text(
+            'Review whether this sentence still fits the current meaning.',
+            style: theme.textTheme.small,
+          ),
+          const SizedBox(height: AppSpacing.compact),
+          ShadButton.outline(
+            key: const ValueKey('confirm-preserved-production'),
+            height: 0,
+            enabled: canConfirm,
+            onPressed: onConfirm,
+            child: const CaptureButtonLabel('This sentence still fits'),
+          ),
+        ],
+      ],
+    );
   }
 }
 

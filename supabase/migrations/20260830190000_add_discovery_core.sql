@@ -9,7 +9,12 @@ return regexp_replace(
   regexp_replace(
     regexp_replace(
       regexp_replace(
-        lower(btrim(p_value)),
+        regexp_replace(
+          lower(btrim(p_value)),
+          $pattern$[[:space:]]+$pattern$,
+          ' ',
+          'g'
+        ),
         $pattern$[‘’ʼ＇]$pattern$,
         '''',
         'g'

@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(39);
+select plan(41);
 
 select has_function(
   'public',
@@ -90,6 +90,11 @@ select is(
   public.normalize_surface_match(' en — route '),
   'en-route',
   'hyphens and adjacent whitespace normalize'
+);
+select is(
+  public.normalize_surface_match(E'discovery  \t concurrency\nfixture'),
+  'discovery concurrency fixture',
+  'repeated internal whitespace normalizes before locking'
 );
 select isnt(
   public.normalize_surface_match('records'),
@@ -428,5 +433,37 @@ select throws_like(
 );
 
 reset role;
+
+insert into public.learning_items (user_id, kind, content)
+select
+  '31000000-0000-4000-8000-000000000001',
+  'vocabulary',
+  'performance surface ' || series
+from generate_series(1, 10000) as series;
+analyze public.learning_items;
+
+create function pg_temp.discovery_surface_plan()
+returns setof text
+language plpgsql
+as $$
+begin
+  return query execute $plan$
+    explain (costs off)
+    select *
+    from public.learning_items
+    where user_id = '31000000-0000-4000-8000-000000000001'
+      and surface_match_key = 'performance surface 9999'
+      and status = 'active'
+    order by created_at desc, id
+  $plan$;
+end;
+$$;
+
+select matches(
+  (select string_agg(plan_line, E'\n') from pg_temp.discovery_surface_plan() as plan_line),
+  'learning_items_surface_match_idx',
+  'exact-surface lookup uses its covered index at 10000 rows'
+);
+
 select * from finish();
 rollback;

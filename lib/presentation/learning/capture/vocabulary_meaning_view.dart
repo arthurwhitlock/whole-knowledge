@@ -265,6 +265,15 @@ class _CaptureVocabularyMeaningViewState
           ],
           CaptureInlineError(controller.saveError),
           if (controller.draft.meaning.trim().isNotEmpty) ...[
+            if (controller.draft.production.trim().isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.pageCompact),
+              CaptureStaleProductionNotice(
+                production: controller.draft.production,
+                confirmed: controller.draft.isProductionConfirmed,
+                canConfirm: controller.draft.isMeaningConfirmed,
+                onConfirm: controller.confirmProduction,
+              ),
+            ],
             const SizedBox(height: AppSpacing.pageCompact),
             CaptureEncounterDetails(controller: controller),
             const SizedBox(height: AppSpacing.pageCompact),

@@ -134,6 +134,15 @@ class _CaptureExpressionMeaningViewState
                 child: const Text('Use this meaning'),
               ),
             ],
+            if (controller.draft.production.trim().isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.pageCompact),
+              CaptureStaleProductionNotice(
+                production: controller.draft.production,
+                confirmed: controller.draft.isProductionConfirmed,
+                canConfirm: controller.draft.isMeaningConfirmed,
+                onConfirm: controller.confirmProduction,
+              ),
+            ],
             const SizedBox(height: AppSpacing.pageCompact),
             CaptureEncounterDetails(controller: controller),
             const SizedBox(height: AppSpacing.pageCompact),
