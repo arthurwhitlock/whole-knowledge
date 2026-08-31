@@ -241,7 +241,7 @@ void main() {
         find.byKey(const ValueKey('capture-content')),
         content,
       );
-      await _tapKey(tester, 'enter-meaning-manually');
+      await _tapText(tester, 'Enter meaning manually');
       await _waitFor(tester, find.byKey(const ValueKey('capture-meaning')));
       await _waitFor(tester, find.byKey(const ValueKey('library-failed')));
       await tester.enterText(
