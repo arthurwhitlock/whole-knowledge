@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:whole_knowledge/application/capture/discovery_failure.dart';
 import 'package:whole_knowledge/application/capture/discovery_submission.dart';
 import 'package:whole_knowledge/domain/learning/learning_item.dart';
 import 'package:whole_knowledge/domain/learning/review_attempt.dart';
@@ -42,6 +43,32 @@ void main() {
       );
       await restoredClient.auth.refreshSession();
       await otherClient.auth.signInAnonymously();
+
+      await expectLater(
+        ownerItems.completeDiscovery(
+          DiscoverySubmission(
+            submissionId: '70000000-0000-4000-8000-000000000007',
+            kind: LearningItemKind.expression,
+            content: 'Discovery validation fixture',
+            meaning: 'a rejected oversized authored field',
+            source: 's' * 1001,
+            allowExistingSurface: false,
+          ),
+        ),
+        throwsA(
+          isA<DiscoveryFailure>()
+              .having(
+                (failure) => failure.code,
+                'code',
+                DiscoveryFailureCode.discoveryValidationRejected,
+              )
+              .having(
+                (failure) => failure.metadata.field,
+                'field',
+                DiscoveryFailureField.source,
+              ),
+        ),
+      );
 
       const firstSubmission = DiscoverySubmission(
         submissionId: '10000000-0000-4000-8000-000000000001',
@@ -94,6 +121,111 @@ void main() {
         await otherItems.findActiveBySurfaceForm(original.content),
         isEmpty,
       );
+
+      for (final fixture in [
+        (
+          submissionId: '50000000-0000-4000-8000-000000000005',
+          content: 'Discovery replay fixture false',
+          allowExistingSurface: false,
+        ),
+        (
+          submissionId: '60000000-0000-4000-8000-000000000006',
+          content: 'Discovery replay fixture true',
+          allowExistingSurface: true,
+        ),
+      ]) {
+        final submission = DiscoverySubmission(
+          submissionId: fixture.submissionId,
+          kind: LearningItemKind.expression,
+          content: fixture.content,
+          meaning: 'an idempotent concurrent submission',
+          allowExistingSurface: fixture.allowExistingSurface,
+        );
+        final replayRelease = Completer<void>();
+        final ownerResult = _completeAfter(
+          replayRelease.future,
+          ownerItems,
+          submission,
+        );
+        final restoredResult = _completeAfter(
+          replayRelease.future,
+          restoredItems,
+          submission,
+        );
+        replayRelease.complete();
+        final replaySettled = await Future.wait([ownerResult, restoredResult]);
+
+        expect(replaySettled.every((result) => result.error == null), isTrue);
+        expect(
+          replaySettled.map((result) => result.value.runtimeType).toSet(),
+          {DiscoveryCreated, DiscoveryReplayed},
+        );
+        expect(
+          replaySettled.map((result) => result.value!.item.id).toSet(),
+          hasLength(1),
+        );
+        expect(
+          await ownerItems.findActiveBySurfaceForm(fixture.content),
+          hasLength(1),
+        );
+        await ownerClient
+            .from('learning_items')
+            .delete()
+            .eq('id', replaySettled.first.value!.item.id);
+      }
+
+      const conflictingId = '80000000-0000-4000-8000-000000000008';
+      const firstPayload = DiscoverySubmission(
+        submissionId: conflictingId,
+        kind: LearningItemKind.expression,
+        content: 'Discovery submission lock fixture A',
+        meaning: 'the first payload',
+        allowExistingSurface: true,
+      );
+      const secondPayload = DiscoverySubmission(
+        submissionId: conflictingId,
+        kind: LearningItemKind.expression,
+        content: 'Discovery submission lock fixture B',
+        meaning: 'the second payload',
+        allowExistingSurface: true,
+      );
+      final conflictRelease = Completer<void>();
+      final firstConflict = _completeAfter(
+        conflictRelease.future,
+        ownerItems,
+        firstPayload,
+      );
+      final secondConflict = _completeAfter(
+        conflictRelease.future,
+        restoredItems,
+        secondPayload,
+      );
+      conflictRelease.complete();
+      final conflictSettled = await Future.wait([
+        firstConflict,
+        secondConflict,
+      ]);
+      expect(
+        conflictSettled.where((result) => result.value is DiscoveryCreated),
+        hasLength(1),
+      );
+      expect(
+        conflictSettled
+            .map((result) => result.error)
+            .whereType<DiscoveryFailure>()
+            .single
+            .code,
+        DiscoveryFailureCode.discoverySubmissionConflict,
+      );
+      final conflictItem = conflictSettled
+          .map((result) => result.value)
+          .whereType<DiscoveryCreated>()
+          .single
+          .item;
+      await ownerClient
+          .from('learning_items')
+          .delete()
+          .eq('id', conflictItem.id);
 
       const additionalSubmission = DiscoverySubmission(
         submissionId: '30000000-0000-4000-8000-000000000003',

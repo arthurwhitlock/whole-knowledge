@@ -11,6 +11,9 @@ abstract final class DiscoveryValidation {
   static String? validateContent(String value) {
     final normalized = value.trim();
     if (normalized.isEmpty) return 'Enter the language you encountered.';
+    if (surfaceMatchKey(normalized).isEmpty) {
+      return 'Enter language beyond surrounding punctuation.';
+    }
     if (normalized.length > maximumContentLength) {
       return 'Keep the captured language under 2,000 characters.';
     }

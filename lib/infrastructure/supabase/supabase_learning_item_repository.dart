@@ -76,14 +76,34 @@ final class SupabaseLearningItemRepository implements LearningItemRepository {
       rethrow;
     } on PostgrestException catch (error) {
       final message = error.message.toLowerCase();
-      final code = message.contains('different data')
+      final field = switch (message) {
+        final value when value.contains('captured language') =>
+          DiscoveryFailureField.content,
+        final value when value.contains('part of speech') =>
+          DiscoveryFailureField.partOfSpeech,
+        final value when value.contains('meaning must') =>
+          DiscoveryFailureField.meaning,
+        final value when value.contains('context must') =>
+          DiscoveryFailureField.context,
+        final value when value.contains('source must') =>
+          DiscoveryFailureField.source,
+        final value when value.contains('first production') =>
+          DiscoveryFailureField.firstProduction,
+        _ => null,
+      };
+      final code = error.code == '22023'
+          ? DiscoveryFailureCode.discoveryValidationRejected
+          : message.contains('different data')
           ? DiscoveryFailureCode.discoverySubmissionConflict
           : message.contains('authenticated session')
           ? DiscoveryFailureCode.sessionUnavailable
           : DiscoveryFailureCode.discoveryServiceUnavailable;
       throw DiscoveryFailure(
         code,
-        metadata: DiscoveryFailureMetadata(backendCode: error.code),
+        metadata: DiscoveryFailureMetadata(
+          field: field,
+          backendCode: error.code,
+        ),
       );
     }
   }

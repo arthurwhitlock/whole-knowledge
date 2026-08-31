@@ -40,6 +40,7 @@ final class CaptureDraft {
   const CaptureDraft({
     this.draftRevision = 0,
     this.kind = LearningItemKind.expression,
+    this.kindWasOverridden = false,
     this.content = '',
     this.partOfSpeech,
     this.meaning = '',
@@ -81,6 +82,7 @@ final class CaptureDraft {
     return CaptureDraft(
       draftRevision: (json['draftRevision'] as num?)?.toInt() ?? 0,
       kind: _kindFromJson(json['kind']),
+      kindWasOverridden: json['kindWasOverridden'] as bool? ?? false,
       content: json['content'] as String? ?? '',
       partOfSpeech: json['partOfSpeech'] as String?,
       meaning: json['meaning'] as String? ?? '',
@@ -103,6 +105,7 @@ final class CaptureDraft {
 
   final int draftRevision;
   final LearningItemKind kind;
+  final bool kindWasOverridden;
   final String content;
   final String? partOfSpeech;
   final String meaning;
@@ -135,6 +138,7 @@ final class CaptureDraft {
   CaptureDraft copyWith({
     int? draftRevision,
     LearningItemKind? kind,
+    bool? kindWasOverridden,
     String? content,
     String? partOfSpeech,
     bool clearPartOfSpeech = false,
@@ -154,6 +158,7 @@ final class CaptureDraft {
     return CaptureDraft(
       draftRevision: draftRevision ?? this.draftRevision,
       kind: kind ?? this.kind,
+      kindWasOverridden: kindWasOverridden ?? this.kindWasOverridden,
       content: content ?? this.content,
       partOfSpeech: clearPartOfSpeech
           ? null
@@ -184,6 +189,7 @@ final class CaptureDraft {
     'version': 2,
     'draftRevision': draftRevision,
     'kind': kind.name,
+    'kindWasOverridden': kindWasOverridden,
     'content': content,
     'partOfSpeech': partOfSpeech,
     'meaning': meaning,

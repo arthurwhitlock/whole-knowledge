@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(41);
+select plan(42);
 
 select has_function(
   'public',
@@ -131,6 +131,24 @@ select set_config(
   'request.jwt.claim.sub',
   '31000000-0000-4000-8000-000000000001',
   true
+);
+
+select throws_like(
+  $$
+    select public.complete_discovery(
+      '30000000-0000-4000-8000-000000000000',
+      'expression',
+      '...',
+      null,
+      'punctuation only',
+      null,
+      null,
+      null,
+      false
+    )
+  $$,
+  '%canonical surface%',
+  'punctuation-only content cannot create an empty surface key'
 );
 
 select throws_ok(

@@ -112,10 +112,14 @@ begin
     raise exception 'An authenticated session is required';
   end if;
   if p_submission_id is null then
-    raise exception 'Discovery submission ID is required';
+    raise exception using
+      message = 'Discovery submission ID is required',
+      errcode = '22023';
   end if;
   if p_allow_existing_surface is null then
-    raise exception 'Allow-existing intent is required';
+    raise exception using
+      message = 'Allow-existing intent is required',
+      errcode = '22023';
   end if;
 
   normalized_content := btrim(p_content);
@@ -126,32 +130,60 @@ begin
   normalized_production := nullif(btrim(p_first_production), '');
 
   if p_kind not in ('expression', 'vocabulary') then
-    raise exception 'Unsupported learning item kind';
+    raise exception using
+      message = 'Unsupported learning item kind',
+      errcode = '22023';
   end if;
   if normalized_content is null
     or length(normalized_content) not between 1 and 2000
     or normalized_content !~ '[^[:space:]]' then
-    raise exception 'Captured language must be between 1 and 2000 characters';
+    raise exception using
+      message = 'Captured language must be between 1 and 2000 characters',
+      errcode = '22023';
   end if;
   if normalized_meaning is null
     or length(normalized_meaning) not between 1 and 4000
     or normalized_meaning !~ '[^[:space:]]' then
-    raise exception 'Meaning must be between 1 and 4000 characters';
+    raise exception using
+      message = 'Meaning must be between 1 and 4000 characters',
+      errcode = '22023';
   end if;
   if normalized_part_of_speech is not null
     and length(normalized_part_of_speech) > 80 then
-    raise exception 'Part of speech must be at most 80 characters';
+    raise exception using
+      message = 'Part of speech must be at most 80 characters',
+      errcode = '22023';
   end if;
   if normalized_context is not null and length(normalized_context) > 4000 then
-    raise exception 'Context must be at most 4000 characters';
+    raise exception using
+      message = 'Context must be at most 4000 characters',
+      errcode = '22023';
   end if;
   if normalized_source is not null and length(normalized_source) > 1000 then
-    raise exception 'Source must be at most 1000 characters';
+    raise exception using
+      message = 'Source must be at most 1000 characters',
+      errcode = '22023';
   end if;
   if normalized_production is not null
     and length(normalized_production) > 10000 then
-    raise exception 'First production must be at most 10000 characters';
+    raise exception using
+      message = 'First production must be at most 10000 characters',
+      errcode = '22023';
   end if;
+
+  match_key := public.normalize_surface_match(normalized_content);
+  if match_key = '' then
+    raise exception using
+      message = 'Captured language must contain a canonical surface',
+      errcode = '22023';
+  end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      caller_id::text || ':submission:' || p_submission_id::text,
+      0
+    )
+  );
 
   select item.*
   into existing_item
@@ -177,7 +209,6 @@ begin
     );
   end if;
 
-  match_key := public.normalize_surface_match(normalized_content);
   perform pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended(caller_id::text || ':' || match_key, 0)
   );

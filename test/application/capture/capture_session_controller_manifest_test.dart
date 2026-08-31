@@ -585,6 +585,57 @@ void main() {
       controller.dispose();
     });
   });
+
+  group('manifest optional authored field validation', () {
+    test('oversized context stays in editable meaning phase', () async {
+      final items = FakeLearningItemRepository();
+      final controller = await _controller(items: items);
+      controller.updateContent('on the record');
+      await controller.discover();
+      controller.updateMeaning('officially');
+      controller.updateEncounterDetails(context: 'c' * 4001);
+
+      expect(controller.continueToProduction(), isFalse);
+      expect(controller.state, isA<CaptureExpressionMeaning>());
+      expect(controller.saveError, 'Keep the context under 4,000 characters.');
+      expect(items.discoverySubmissions, isEmpty);
+      controller.dispose();
+    });
+
+    test('oversized source stays in editable meaning phase', () async {
+      final items = FakeLearningItemRepository();
+      final controller = await _controller(items: items);
+      controller.updateContent('on the record');
+      await controller.discover();
+      controller.updateMeaning('officially');
+      controller.updateEncounterDetails(source: 's' * 1001);
+
+      expect(controller.continueToProduction(), isFalse);
+      expect(controller.state, isA<CaptureExpressionMeaning>());
+      expect(controller.saveError, 'Keep the source under 1,000 characters.');
+      expect(items.discoverySubmissions, isEmpty);
+      controller.dispose();
+    });
+
+    test('oversized part of speech stays in editable meaning phase', () async {
+      final items = FakeLearningItemRepository();
+      final controller = await _controller(items: items);
+      controller.updateContent('record');
+      await controller.discover();
+      controller.chooseManualMeaning();
+      controller.updateMeaning('a stored account');
+      controller.update(controller.draft.copyWith(partOfSpeech: 'p' * 81));
+
+      expect(controller.continueToProduction(), isFalse);
+      expect(controller.state, isA<CaptureVocabularySenses>());
+      expect(
+        controller.saveError,
+        'Keep the part of speech under 80 characters.',
+      );
+      expect(items.discoverySubmissions, isEmpty);
+      controller.dispose();
+    });
+  });
 }
 
 Future<CaptureSessionController> _controller({

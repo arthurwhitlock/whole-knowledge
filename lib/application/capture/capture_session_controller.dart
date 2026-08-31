@@ -33,7 +33,6 @@ final class CaptureSessionController {
   LexicalLookup? _activeLookup;
   LibraryOutcome _libraryOutcome = const LibraryPending();
   int _generation = 0;
-  bool _kindOverridden = false;
   bool _allowExistingSurface = false;
 
   CaptureSessionState get state => _state;
@@ -49,7 +48,7 @@ final class CaptureSessionController {
   };
   LearningItemKind get suggestedKind =>
       DiscoveryValidation.suggestKind(draft.content);
-  bool get kindWasOverridden => _kindOverridden;
+  bool get kindWasOverridden => draft.kindWasOverridden;
   LibraryOutcome get libraryOutcome => _libraryOutcome;
   bool restored = false;
   String? contentError;
@@ -90,7 +89,10 @@ final class CaptureSessionController {
         return true;
       }
       if (saved.meaning.trim().isNotEmpty) {
+        final generation = ++_generation;
+        _libraryOutcome = const LibraryPending();
         _setState(CaptureProduction(saved));
+        unawaited(_loadLibrary(generation));
       } else {
         _setState(CaptureEntry(saved, restored: restored));
       }
@@ -170,19 +172,19 @@ final class CaptureSessionController {
   }
 
   void updateContent(String value) {
-    final kind = _kindOverridden
+    final kind = draft.kindWasOverridden
         ? draft.kind
         : DiscoveryValidation.suggestKind(value);
     update(draft.copyWith(content: value, kind: kind));
   }
 
   void updateKind(LearningItemKind kind) {
-    if (draft.kind == kind && _kindOverridden) return;
+    if (draft.kind == kind && draft.kindWasOverridden) return;
     final priorState = _state;
-    _kindOverridden = true;
     update(
       draft.copyWith(
         kind: kind,
+        kindWasOverridden: true,
         clearPartOfSpeech: kind == LearningItemKind.expression,
       ),
     );
@@ -574,7 +576,11 @@ final class CaptureSessionController {
   }
 
   bool continueToProduction() {
-    final error = DiscoveryValidation.validateMeaning(draft.meaning);
+    final error =
+        DiscoveryValidation.validateMeaning(draft.meaning) ??
+        DiscoveryValidation.validatePartOfSpeech(draft.partOfSpeech) ??
+        DiscoveryValidation.validateContext(draft.context) ??
+        DiscoveryValidation.validateSource(draft.source);
     if (error != null) {
       saveError = error;
       _notify();
@@ -711,10 +717,20 @@ final class CaptureSessionController {
       draft.production,
       required: !deferProduction,
     );
+    final authoredDetailFailure =
+        DiscoveryValidation.validatePartOfSpeech(draft.partOfSpeech) ??
+        DiscoveryValidation.validateContext(draft.context) ??
+        DiscoveryValidation.validateSource(draft.source);
     contentError = contentFailure;
-    saveError = meaningFailure ?? productionFailure;
-    if (contentFailure != null || meaningFailure != null) {
-      _notify();
+    saveError = meaningFailure ?? authoredDetailFailure ?? productionFailure;
+    if (contentFailure != null) {
+      _setState(CaptureEntry(draft));
+      return null;
+    }
+    if (meaningFailure != null || authoredDetailFailure != null) {
+      _resumeMeaningPhase(
+        lookupIfMissing: draft.kind == LearningItemKind.vocabulary,
+      );
       return null;
     }
     if (!draft.isMeaningConfirmed) {
@@ -765,6 +781,7 @@ final class CaptureSessionController {
   Future<LearningItem?> _prepareAndSubmit(
     DiscoverySubmission submission,
   ) async {
+    _debounce?.cancel();
     final prepared = draft.copyWith(
       draftRevision: draft.draftRevision + 1,
       submissionCheckpoint: DiscoverySubmissionCheckpoint(
@@ -863,10 +880,12 @@ final class CaptureSessionController {
               ),
             );
           }
-          await _clearAfterSuccessfulCreate();
+          final empty = await _clearAfterSuccessfulCreate(
+            kind: attemptedDraft.kind,
+            attemptedRevision: attemptedDraft.draftRevision,
+          );
           _allowExistingSurface = false;
           restored = false;
-          final empty = CaptureDraft(kind: draft.kind);
           _setState(CaptureDiscovered(empty, item: item));
           return item;
       }
@@ -883,7 +902,16 @@ final class CaptureSessionController {
           draftRevision: attemptedDraft.draftRevision + 1,
           clearSubmissionCheckpoint: true,
         );
-        _setState(CaptureProduction(next));
+        try {
+          await _drafts.write(next);
+        } on Object {
+          _recordFailure(
+            DiscoveryDiagnosticOperation.draftWrite,
+            const DiscoveryFailure(DiscoveryFailureCode.draftWriteFailure),
+            submissionId: checkpoint.submission.submissionId,
+          );
+        }
+        _returnToValidationField(next, failure.metadata.field);
       } else {
         _setState(
           CaptureReconciling(
@@ -918,27 +946,35 @@ final class CaptureSessionController {
 
   void done() {
     if (_state is CaptureDiscovered) {
-      _setState(const CaptureEntry(CaptureDraft()));
+      _setState(CaptureEntry(draft));
     }
   }
 
   void captureAnother() {
     if (_state is CaptureDiscovered) {
-      _kindOverridden = false;
-      _setState(const CaptureEntry(CaptureDraft()));
+      _setState(CaptureEntry(draft));
     }
   }
 
-  Future<void> _clearAfterSuccessfulCreate() async {
+  Future<CaptureDraft> _clearAfterSuccessfulCreate({
+    required LearningItemKind kind,
+    required int attemptedRevision,
+  }) async {
+    _debounce?.cancel();
     try {
       await _drafts.clear();
+      return CaptureDraft(kind: kind);
     } on Object {
       _recordFailure(
         DiscoveryDiagnosticOperation.draftWrite,
         const DiscoveryFailure(DiscoveryFailureCode.draftWriteFailure),
       );
+      final tombstone = CaptureDraft(
+        draftRevision: attemptedRevision + 1,
+        kind: kind,
+      );
       try {
-        await _drafts.write(const CaptureDraft());
+        await _drafts.write(tombstone);
       } on Object {
         _recordFailure(
           DiscoveryDiagnosticOperation.draftWrite,
@@ -947,6 +983,29 @@ final class CaptureSessionController {
         // The committed server item is authoritative. No duplicate action is
         // exposed when local cleanup is unavailable.
       }
+      return tombstone;
+    }
+  }
+
+  void _returnToValidationField(
+    CaptureDraft next,
+    DiscoveryFailureField? field,
+  ) {
+    switch (field) {
+      case DiscoveryFailureField.content:
+        contentError = saveError;
+        saveError = null;
+        _setState(CaptureEntry(next));
+      case DiscoveryFailureField.meaning ||
+          DiscoveryFailureField.context ||
+          DiscoveryFailureField.source ||
+          DiscoveryFailureField.partOfSpeech:
+        _setState(CaptureProduction(next));
+        _resumeMeaningPhase(
+          lookupIfMissing: next.kind == LearningItemKind.vocabulary,
+        );
+      case DiscoveryFailureField.firstProduction || null:
+        _setState(CaptureProduction(next));
     }
   }
 

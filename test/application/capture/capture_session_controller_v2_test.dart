@@ -46,6 +46,65 @@ void main() {
   );
 
   test(
+    'restored authored draft reruns Library check and unblocks save',
+    () async {
+      final gate = Completer<void>();
+      final drafts = FakeCaptureDraftRepository()
+        ..saved = const CaptureDraft(
+          content: 'on the record',
+          meaning: 'officially',
+          meaningRevision: 1,
+          meaningConfirmedRevision: 1,
+        );
+      final items = FakeLearningItemRepository()..matchGate = gate;
+      final controller = CaptureSessionController(
+        drafts,
+        FakeLexicalProvider(),
+        items,
+        Duration.zero,
+      );
+
+      await controller.restore();
+      expect(controller.state, isA<CaptureProduction>());
+      expect(controller.libraryOutcome, isA<LibraryPending>());
+
+      gate.complete();
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.libraryOutcome, isA<LibraryNoMatch>());
+      expect(
+        await controller.completeDiscovery(deferProduction: true),
+        isNotNull,
+      );
+    },
+  );
+
+  test('invalid restored content returns to editable Entry', () async {
+    final drafts = FakeCaptureDraftRepository()
+      ..saved = const CaptureDraft(
+        content: '...',
+        meaning: 'punctuation only',
+        meaningRevision: 1,
+        meaningConfirmedRevision: 1,
+      );
+    final controller = CaptureSessionController(
+      drafts,
+      FakeLexicalProvider(),
+      FakeLearningItemRepository(),
+      Duration.zero,
+    );
+
+    await controller.restore();
+    await Future<void>.delayed(Duration.zero);
+    expect(await controller.completeDiscovery(deferProduction: true), isNull);
+
+    expect(controller.state, isA<CaptureEntry>());
+    expect(
+      controller.contentError,
+      'Enter language beyond surrounding punctuation.',
+    );
+  });
+
+  test(
     'lexical result is usable while Library matching remains pending',
     () async {
       final matchGate = Completer<void>();
@@ -127,6 +186,32 @@ void main() {
   );
 
   test(
+    'restored manual kind override survives subsequent content edits',
+    () async {
+      final drafts = FakeCaptureDraftRepository()
+        ..saved = const CaptureDraft(
+          kind: LearningItemKind.vocabulary,
+          kindWasOverridden: true,
+          content: 'on the record',
+        );
+      final controller = CaptureSessionController(
+        drafts,
+        FakeLexicalProvider(),
+        FakeLearningItemRepository(),
+        Duration.zero,
+      );
+
+      await controller.restore();
+      controller.updateContent('on the permanent record');
+
+      expect(controller.draft.kind, LearningItemKind.vocabulary);
+      expect(controller.kindWasOverridden, isTrue);
+      await controller.flush();
+      expect(drafts.saved!.kindWasOverridden, isTrue);
+    },
+  );
+
+  test(
     'edited provider copy requires inline replacement confirmation',
     () async {
       final controller = await _vocabularyController();
@@ -186,6 +271,79 @@ void main() {
       );
     },
   );
+
+  test('successful save cancels an older queued draft autosave', () async {
+    final drafts = FakeCaptureDraftRepository();
+    final controller = CaptureSessionController(
+      drafts,
+      FakeLexicalProvider(),
+      FakeLearningItemRepository(),
+      const Duration(milliseconds: 30),
+    );
+    await controller.restore();
+    controller.updateContent('on the record');
+    await controller.discover();
+    controller.updateMeaning('officially');
+    expect(controller.continueToProduction(), isTrue);
+    controller.updateProduction('I kept it on the record.');
+
+    expect(await controller.completeDiscovery(), isNotNull);
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+
+    expect(drafts.saved, isNull);
+  });
+
+  test(
+    'failed post-save clear advances the next draft revision epoch',
+    () async {
+      final drafts = FakeCaptureDraftRepository()..shouldFailClear = true;
+      final controller = await _vocabularyController(drafts: drafts);
+      controller.selectSense(controller.lookup!.senses.first);
+      expect(controller.continueToProduction(), isTrue);
+
+      expect(
+        await controller.completeDiscovery(deferProduction: true),
+        isNotNull,
+      );
+      final tombstoneRevision = controller.draft.draftRevision;
+      expect(tombstoneRevision, greaterThan(0));
+      expect(controller.draft.submissionCheckpoint, isNull);
+
+      controller.captureAnother();
+      controller.updateContent('next capture');
+      await controller.flush();
+
+      expect(controller.draft.draftRevision, greaterThan(tombstoneRevision));
+      expect(drafts.saved!.content, 'next capture');
+    },
+  );
+
+  test('backend field validation returns to an editable phase', () async {
+    final drafts = FakeCaptureDraftRepository();
+    final items = FakeLearningItemRepository()
+      ..discoveryFailure = const DiscoveryFailure(
+        DiscoveryFailureCode.discoveryValidationRejected,
+        metadata: DiscoveryFailureMetadata(field: DiscoveryFailureField.source),
+      );
+    final controller = CaptureSessionController(
+      drafts,
+      FakeLexicalProvider(),
+      items,
+      Duration.zero,
+    );
+    await controller.restore();
+    controller.updateContent('on the record');
+    await controller.discover();
+    controller.updateMeaning('officially');
+    expect(controller.continueToProduction(), isTrue);
+
+    expect(await controller.completeDiscovery(deferProduction: true), isNull);
+
+    expect(controller.state, isA<CaptureExpressionMeaning>());
+    expect(controller.draft.submissionCheckpoint, isNull);
+    expect(drafts.saved!.submissionCheckpoint, isNull);
+    expect(controller.saveError, 'Some Discovery details need correction.');
+  });
 
   test('deferred production saves an item due immediately', () async {
     final items = FakeLearningItemRepository();

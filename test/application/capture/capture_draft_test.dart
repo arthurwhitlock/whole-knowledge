@@ -37,6 +37,7 @@ void main() {
     const draft = CaptureDraft(
       draftRevision: 7,
       kind: LearningItemKind.vocabulary,
+      kindWasOverridden: true,
       content: 'record',
       partOfSpeech: 'noun',
       meaning: 'a stored account',
@@ -56,5 +57,6 @@ void main() {
     expect(restored.toJson(), draft.toJson());
     expect(restored.isMeaningConfirmed, isTrue);
     expect(restored.isProductionConfirmed, isTrue);
+    expect(restored.kindWasOverridden, isTrue);
   });
 }

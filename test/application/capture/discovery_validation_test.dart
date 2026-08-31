@@ -10,6 +10,10 @@ void main() {
         'Enter the language you encountered.',
       );
       expect(
+        DiscoveryValidation.validateContent('...'),
+        'Enter language beyond surrounding punctuation.',
+      );
+      expect(
         DiscoveryValidation.validateMeaning('  '),
         'Add the meaning you encountered.',
       );

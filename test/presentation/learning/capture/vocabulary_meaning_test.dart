@@ -139,6 +139,36 @@ void main() {
     expect(find.byKey(const ValueKey('capture-context')), findsOneWidget);
     expect(find.byKey(const ValueKey('capture-source')), findsOneWidget);
   });
+
+  testWidgets('oversized encounter source remains editable with clear error', (
+    tester,
+  ) async {
+    final harness = await _vocabularyHarness();
+    await pumpCapture(tester, harness.controller, size: const Size(900, 1000));
+    await tester.tap(find.text('noun one'));
+    await tester.pump();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('encounter-details-toggle')),
+    );
+    await tester.tap(find.byKey(const ValueKey('encounter-details-toggle')));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const ValueKey('capture-source')),
+      's' * 1001,
+    );
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('continue-to-production')),
+    );
+    await tester.tap(find.byKey(const ValueKey('continue-to-production')));
+    await tester.pump();
+
+    expect(
+      find.text('Keep the source under 1,000 characters.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('capture-source')), findsOneWidget);
+    expect(harness.items.discoverySubmissions, isEmpty);
+  });
 }
 
 Future<CaptureTestHarness> _vocabularyHarness() async {
