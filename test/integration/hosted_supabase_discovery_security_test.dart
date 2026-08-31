@@ -23,13 +23,16 @@ void main() {
       final ownerItems = SupabaseLearningItemRepository(ownerClient);
       final createdIds = <String>[];
       addTearDown(() async {
-        if (createdIds.isNotEmpty) {
-          await ownerClient
-              .from('learning_items')
-              .delete()
-              .inFilter('id', createdIds);
+        try {
+          if (createdIds.isNotEmpty) {
+            await ownerClient
+                .from('learning_items')
+                .delete()
+                .inFilter('id', createdIds);
+          }
+        } finally {
+          await Future.wait([ownerClient.dispose(), otherClient.dispose()]);
         }
-        await Future.wait([ownerClient.dispose(), otherClient.dispose()]);
       });
 
       final ownerAuth = await ownerClient.auth.signInAnonymously();

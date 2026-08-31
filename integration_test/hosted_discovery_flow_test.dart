@@ -41,19 +41,23 @@ void main() {
       final createdIds = <String>[];
       SupabaseClient? cleanupClient;
       addTearDown(() async {
-        await tester.pumpWidget(const SizedBox.shrink());
-        await tester.pump();
-        if (cleanupClient != null && createdIds.isNotEmpty) {
-          await cleanupClient
-              .from('learning_items')
-              .delete()
-              .inFilter('id', createdIds);
-        }
-        for (final client in clients) {
-          await client.dispose();
-        }
-        if (await draftDirectory.exists()) {
-          await draftDirectory.delete(recursive: true);
+        try {
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pump();
+          if (cleanupClient != null && createdIds.isNotEmpty) {
+            await cleanupClient
+                .from('learning_items')
+                .delete()
+                .inFilter('id', createdIds);
+          }
+        } finally {
+          try {
+            await Future.wait(clients.map((client) => client.dispose()));
+          } finally {
+            if (await draftDirectory.exists()) {
+              await draftDirectory.delete(recursive: true);
+            }
+          }
         }
       });
 
@@ -223,12 +227,18 @@ void main() {
       final runToken = DateTime.now().toUtc().microsecondsSinceEpoch;
       final content = 'WK recovery expression $runToken';
       addTearDown(() async {
-        await tester.pumpWidget(const SizedBox.shrink());
-        await tester.pump();
-        await client.from('learning_items').delete().eq('content', content);
-        await client.dispose();
-        if (await draftDirectory.exists()) {
-          await draftDirectory.delete(recursive: true);
+        try {
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pump();
+          await client.from('learning_items').delete().eq('content', content);
+        } finally {
+          try {
+            await client.dispose();
+          } finally {
+            if (await draftDirectory.exists()) {
+              await draftDirectory.delete(recursive: true);
+            }
+          }
         }
       });
 
