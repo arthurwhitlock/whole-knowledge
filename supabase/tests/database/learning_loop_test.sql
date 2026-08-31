@@ -31,13 +31,13 @@ select ok(
   'part of speech hardening preserves legacy rows'
 );
 select ok(
-  has_column_privilege(
+  not has_column_privilege(
     'authenticated',
     'public.learning_items',
     'part_of_speech',
     'insert'
   ),
-  'authenticated capture can set part of speech'
+  'part of speech creation is available only through complete_discovery'
 );
 select ok(
   to_regclass('public.learning_items_recent_idx') is not null,
@@ -169,6 +169,30 @@ values
     '20000000-0000-4000-8000-000000000002',
     'vocabulary',
     'doch'
+  ),
+  (
+    '12000000-0000-4000-8000-000000000002',
+    '10000000-0000-4000-8000-000000000001',
+    'vocabulary',
+    'pourtant'
+  ),
+  (
+    '13000000-0000-4000-8000-000000000003',
+    '10000000-0000-4000-8000-000000000001',
+    'expression',
+    'hard interval fixture'
+  ),
+  (
+    '14000000-0000-4000-8000-000000000004',
+    '10000000-0000-4000-8000-000000000001',
+    'expression',
+    'easy interval fixture'
+  ),
+  (
+    '15000000-0000-4000-8000-000000000005',
+    '10000000-0000-4000-8000-000000000001',
+    'expression',
+    'rollback fixture'
   );
 
 set local role authenticated;
@@ -183,32 +207,18 @@ select set_config(
   true
 );
 
-select lives_ok(
+select throws_ok(
   $$
     insert into public.learning_items (user_id, kind, content)
-    values
-      (
-        '10000000-0000-4000-8000-000000000001',
-        'vocabulary',
-        'pourtant'
-      ),
-      (
-        '10000000-0000-4000-8000-000000000001',
-        'expression',
-        'hard interval fixture'
-      ),
-      (
-        '10000000-0000-4000-8000-000000000001',
-        'expression',
-        'easy interval fixture'
-      ),
-      (
-        '10000000-0000-4000-8000-000000000001',
-        'expression',
-        'rollback fixture'
-      )
+    values (
+      '10000000-0000-4000-8000-000000000001',
+      'vocabulary',
+      'direct insert is retired'
+    )
   $$,
-  'an authenticated user can capture an owned item'
+  '42501',
+  'permission denied for table learning_items',
+  'authenticated direct creation is retired after Discovery validation'
 );
 
 select throws_ok(

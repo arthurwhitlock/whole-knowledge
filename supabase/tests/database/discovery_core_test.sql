@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(42);
+select plan(43);
 
 select has_function(
   'public',
@@ -80,6 +80,14 @@ select ok(
     'execute'
   ),
   'authenticated callers can execute complete_discovery'
+);
+select ok(
+  not has_any_column_privilege(
+    'authenticated',
+    'public.learning_items',
+    'insert'
+  ),
+  'authenticated callers cannot bypass complete_discovery with direct insert'
 );
 select is(
   public.normalize_surface_match(' “L’arc!” '),
