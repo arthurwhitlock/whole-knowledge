@@ -2,7 +2,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:whole_knowledge/application/capture/discovery_failure.dart';
 import 'package:whole_knowledge/application/capture/discovery_submission.dart';
 import 'package:whole_knowledge/application/capture/discovery_validation.dart';
-import 'package:whole_knowledge/application/learning/capture_learning_item.dart';
 import 'package:whole_knowledge/application/learning/learning_item_repository.dart';
 import 'package:whole_knowledge/domain/learning/learning_item.dart';
 import 'package:whole_knowledge/infrastructure/supabase/supabase_row_mappers.dart';
@@ -12,27 +11,6 @@ final class SupabaseLearningItemRepository implements LearningItemRepository {
 
   static const _pageSize = 1000;
   final SupabaseClient _client;
-
-  @override
-  Future<LearningItem> create(CaptureLearningItem capture) async {
-    final userId = _requireUserId();
-    final normalized = capture.normalized();
-    final row = await _client
-        .from('learning_items')
-        .insert({
-          'user_id': userId,
-          'kind': normalized.kind.name,
-          'content': normalized.content,
-          'part_of_speech': normalized.partOfSpeech,
-          'meaning': normalized.meaning,
-          'context': normalized.context,
-          'source': normalized.source,
-        })
-        .select()
-        .single();
-
-    return SupabaseLearningItemMapper.fromRow(row);
-  }
 
   @override
   Future<List<LearningItem>> findActiveBySurfaceForm(String content) async {
@@ -51,7 +29,7 @@ final class SupabaseLearningItemRepository implements LearningItemRepository {
     } on PostgrestException catch (error) {
       throw DiscoveryFailure(
         DiscoveryFailureCode.libraryCheckUnavailable,
-        metadata: {'code': error.code},
+        metadata: DiscoveryFailureMetadata(backendCode: error.code),
       );
     }
   }
@@ -103,7 +81,10 @@ final class SupabaseLearningItemRepository implements LearningItemRepository {
           : message.contains('authenticated session')
           ? DiscoveryFailureCode.sessionUnavailable
           : DiscoveryFailureCode.discoveryServiceUnavailable;
-      throw DiscoveryFailure(code, metadata: {'code': error.code});
+      throw DiscoveryFailure(
+        code,
+        metadata: DiscoveryFailureMetadata(backendCode: error.code),
+      );
     }
   }
 

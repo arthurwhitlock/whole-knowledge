@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:whole_knowledge/application/learning/capture_learning_item.dart';
+import 'package:whole_knowledge/application/capture/discovery_submission.dart';
 import 'package:whole_knowledge/domain/learning/learning_item.dart';
 import 'package:whole_knowledge/domain/learning/review_attempt.dart';
 import 'package:whole_knowledge/infrastructure/supabase/supabase_learning_item_repository.dart';
@@ -59,13 +59,18 @@ void main() {
       expect(otherAuth.user, isNotNull);
       expect(otherAuth.user!.id, isNot(ownerSession.user.id));
 
-      final item = await ownerItems.create(
-        const CaptureLearningItem(
+      final discovery = await ownerItems.completeDiscovery(
+        const DiscoverySubmission(
+          submissionId: 'b0000000-0000-4000-8000-00000000000b',
           kind: LearningItemKind.expression,
           content: 'local concurrency fixture',
           partOfSpeech: 'idiom',
+          meaning: 'A fixture used to prove review serialization.',
+          allowExistingSurface: false,
         ),
       );
+      expect(discovery, isA<DiscoveryCreated>());
+      final item = discovery.item;
       final itemId = item.id;
 
       final ownerDue = await ownerItems.listDue(at: DateTime.now().toUtc());

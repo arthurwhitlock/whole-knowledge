@@ -7,7 +7,6 @@ import 'package:whole_knowledge/application/capture/lexical_provider.dart';
 import 'package:whole_knowledge/application/capture/discovery_submission.dart';
 import 'package:whole_knowledge/application/capture/discovery_validation.dart';
 import 'package:whole_knowledge/application/capture/discovery_failure.dart';
-import 'package:whole_knowledge/application/learning/capture_learning_item.dart';
 import 'package:whole_knowledge/application/learning/learning_item_repository.dart';
 import 'package:whole_knowledge/application/learning/review_repository.dart';
 import 'package:whole_knowledge/domain/auth/auth_session.dart';
@@ -41,47 +40,17 @@ final class FakeLearningItemRepository implements LearningItemRepository {
     : items = List.of(initialItems);
 
   final List<LearningItem> items;
-  CaptureLearningItem? lastCapture;
-  Completer<void>? createGate;
   Completer<void>? loadGate;
   Completer<void>? matchGate;
   Completer<void>? discoveryGate;
-  bool shouldFailCreate = false;
   bool shouldFailLoads = false;
   bool shouldFailMatches = false;
   DiscoveryFailure? discoveryFailure;
-  int createCalls = 0;
   int listAllCalls = 0;
   int listDueCalls = 0;
   int listPageCalls = 0;
   int discoveryCalls = 0;
   final Map<String, DiscoverySubmission> discoverySubmissions = {};
-
-  @override
-  Future<LearningItem> create(CaptureLearningItem capture) async {
-    createCalls += 1;
-    lastCapture = capture.normalized();
-    await createGate?.future;
-    if (shouldFailCreate) throw StateError('create unavailable');
-    final now = DateTime.utc(
-      2026,
-      8,
-      25,
-      20,
-    ).add(Duration(seconds: items.length));
-    final item = learningItem(
-      id: 'item-${items.length + 1}',
-      content: lastCapture!.content,
-      meaning: lastCapture!.meaning,
-      context: lastCapture!.context,
-      source: lastCapture!.source,
-      partOfSpeech: lastCapture!.partOfSpeech,
-      kind: lastCapture!.kind,
-      nextReviewAt: now,
-    );
-    items.insert(0, item);
-    return item;
-  }
 
   @override
   Future<List<LearningItem>> findActiveBySurfaceForm(String content) async {

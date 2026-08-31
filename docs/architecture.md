@@ -18,7 +18,7 @@ application-facing contracts. The application composition root initializes
 infrastructure and injects `AuthSessionRepository`, `LearningItemRepository`,
 `ReviewRepository`, `CaptureDraftRepository`, and `LexicalProvider` contracts
 into the workspace. Supabase adapters alone map database rows and invoke the
-transactional review function. Local files and external lexical HTTP are
+transactional Discovery and Review functions. Local files and external lexical HTTP are
 separate infrastructure adapters; neither leaks into widgets or domain policy.
 
 ## Supabase responsibilities
@@ -34,7 +34,8 @@ It does not own presentation state, learning-loop policy, or future offline
 conflict policy. The current backend surface is intentionally limited to:
 
 - `learning_items`, the unified expression and vocabulary collection;
-- `review_attempts`, the append-only retrieval and production history; and
+- `review_attempts`, the append-only retrieval and production history;
+- `complete_discovery`, the idempotent same-surface-aware creation boundary; and
 - `complete_review`, an atomic database function that records both attempts,
   increments counters, and advances the next review time.
 
@@ -48,11 +49,15 @@ fixed enum, so provider vocabulary and manually entered values remain durable.
 ## Local capture drafts and lexical lookup
 
 Capture drafts are device-local working state, not synchronized product data.
-The adapter stores versioned JSON in the platform application-support
-directory, writes through a temporary file with a flushed atomic rename, and
-serializes writes. Meaningful drafts are restored before startup routing,
-debounced after edits, flushed on lifecycle transitions, and cleared only after
-a confirmed remote create or explicit discard.
+`CaptureDraftV2` stores authored fields, the manual meaning buffer, first
+production, revision-based confirmation stamps, and the prepared/attempted
+submission checkpoint. It does not persist provider payloads, progress,
+matches, or other derivable state. The adapter stores versioned JSON in the
+platform application-support directory, writes through a temporary file with a
+flushed atomic rename, rejects stale revision writes, and serializes writes.
+Meaningful drafts are restored before startup routing, debounced after edits,
+flushed on lifecycle transitions, and cleared only after a confirmed or
+idempotently replayed remote create or explicit discard.
 
 English meaning lookup is user-triggered and optional. The current adapter uses
 the no-key EnglishDictionaryAPI endpoint, enforces a ten-second timeout and
@@ -60,6 +65,14 @@ one-MiB streamed response limit, and coalesces duplicate in-flight terms. It
 persists only the chosen editable definition and normalized part of speech—not
 provider identifiers or raw responses. Other languages and every provider
 failure retain the manual meaning path.
+
+One sealed Discovery phase family owns the workflow state. Its narrow immutable
+phase values distinguish independent Library and lexical outcomes, meaning
+choice, re-encounter selection/reveal, submission, reconciliation, and final
+confirmation. The adaptive Capture UI renders that family as one centered,
+focused document. Library and lexical reads start together and report progress
+independently. Re-encounter launches the workspace-owned Review controller
+instead of creating a second Review surface.
 
 ## Read models and pagination
 
@@ -125,11 +138,13 @@ sign-ins; abuse controls such as CAPTCHA should be evaluated before public use.
 
 ## Row Level Security
 
-Both product tables enable Row Level Security. Learning-item select, capture,
-and delete policies require `auth.uid() = user_id`; the capture grant is limited
-to user-authored columns so clients cannot set IDs, timestamps, scheduling
-state, or counters. Review attempts are client-readable but append-only: direct
-insert, update, and delete privileges and policies are removed. A composite
+Both product tables enable Row Level Security. Learning-item select, legacy
+capture, and delete policies require `auth.uid() = user_id`. M1 creation uses
+`complete_discovery`, which accepts no owner or protected state and derives
+ownership only from `auth.uid()`. The temporary legacy capture grant remains
+limited to user-authored columns so an older client cannot set IDs, timestamps,
+scheduling state, or counters. Review attempts are client-readable but
+append-only: direct insert, update, and delete privileges and policies are removed. A composite
 foreign key also prevents an attempt from naming an item owned by another user.
 
 `complete_review` is the only client-accessible review write path. It is
@@ -142,6 +157,15 @@ expected review count rejects stale concurrent submissions. Response/rating
 validation happens before mutation, and PostgreSQL rolls back the entire
 function on any exception. Client checks remain usability aids, never
 authorization.
+
+`complete_discovery` is likewise a `security definer` transaction with an empty
+search path. It validates all authored fields, checks identical submission
+replay before duplicate handling, and takes an owner/surface advisory lock
+before rechecking active rows. The stored generated `surface_match_key` is
+indexed by owner and active status but deliberately non-unique: an additional
+sense is created only when the explicit allow-existing intent is present. A
+completed first production schedules 24 hours ahead; a deferral schedules now.
+The client cannot supply owner, schedule, counters, timestamps, or review time.
 
 The hardened attempt-shape, learning-content, and part-of-speech checks are installed
 `NOT VALID`: they apply to every new row without rejecting nullable production
@@ -168,17 +192,41 @@ Database policy tests live under `supabase/tests/database/` and cover positive
 and negative ownership, spoofing, protected-field grants, attempt immutability,
 RPC rollback/replay behavior, scheduling, and cascading deletion. Run them
 against the local disposable stack with `supabase test db`; never point test
-fixtures at a linked hosted project. Concurrency is additionally protected by
-the expected counter predicate and unique submission constraint. The local
-integration test under `test/integration/` exercises the production
-repositories against two independent anonymous sessions and competing real RPC
-requests.
+fixtures at a linked hosted project. Review concurrency is protected by the
+expected counter predicate and unique submission constraint. Discovery
+concurrency is protected by an owner-scoped submission uniqueness constraint
+and the same-surface advisory lock. Local integration tests under
+`test/integration/` exercise production repositories against independent
+anonymous sessions and competing real RPC requests. The surface query plan is
+also checked against a 10,000-row local fixture.
 
-The V0 scheduling rule is duplicated deliberately at two boundaries: pure Dart
+The post-Review V0 scheduling rule is duplicated deliberately at two boundaries: pure Dart
 logic makes it visible and unit-testable, while the transaction function is the
 authoritative persistence path. `again`, `hard`, `good`, and `easy` schedule 10
 minutes, 1 day, 3 days, and 7 days after completion. Any future scheduling
 change must update and test both representations in one migration/change set.
+Discovery adds a separate authoritative initial schedule of now when production
+is deferred or 24 hours when it is completed. Across both paths,
+`next_review_at` is the sole due-state authority; review count is never a due
+shortcut.
+
+## Diagnostics and staged rollout
+
+Discovery failures cross infrastructure as a closed typed code with constrained
+metadata. The diagnostic contract can expose operation, phase, broad HTTP
+status group, backend code, duration, retry/generation counts, opaque item or
+submission IDs, and reconciliation outcome. It has no fields capable of
+carrying captured language, meaning, production, context, source URL, provider
+body, token, or configuration. The default sink is a no-op; M1 adds no hosted
+analytics vendor.
+
+The Flutter direct-create API has been removed. The additive migration retains
+the narrow legacy database insert grant until a separately approved hosted
+migration and Linux/Android live smoke pass. Only then may a reviewed forward
+migration revoke it. Rollback is forward-only: before revocation, revert the
+client; after revocation, restore the narrow legacy grant in a reviewed forward
+migration before reverting the client. Operational steps live in
+[Discovery troubleshooting and rollout](troubleshooting.md).
 
 ## Linux and Android
 

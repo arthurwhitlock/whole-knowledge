@@ -29,7 +29,9 @@ final class EnglishDictionaryApiProvider implements LexicalProvider {
     if (normalized.isEmpty) {
       throw const DiscoveryFailure(
         DiscoveryFailureCode.discoveryValidationRejected,
-        metadata: {'field': 'content'},
+        metadata: DiscoveryFailureMetadata(
+          field: DiscoveryFailureField.content,
+        ),
       );
     }
     return _inFlight.putIfAbsent(normalized, () async {
@@ -64,7 +66,9 @@ final class EnglishDictionaryApiProvider implements LexicalProvider {
       if (response.statusCode != 200) {
         throw DiscoveryFailure(
           DiscoveryFailureCode.lexicalServiceUnavailable,
-          metadata: {'statusGroup': response.statusCode ~/ 100},
+          metadata: DiscoveryFailureMetadata(
+            httpStatusGroup: response.statusCode ~/ 100,
+          ),
         );
       }
       final contentLength = response.contentLength;

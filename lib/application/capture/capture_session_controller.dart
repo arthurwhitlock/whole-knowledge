@@ -1,13 +1,13 @@
 import 'dart:async';
 
 import 'package:whole_knowledge/application/capture/capture_draft.dart';
+import 'package:whole_knowledge/application/capture/discovery_diagnostics.dart';
 import 'package:whole_knowledge/application/capture/capture_session_state.dart';
 import 'package:whole_knowledge/application/capture/discovery_failure.dart';
 import 'package:whole_knowledge/application/capture/discovery_submission.dart';
 import 'package:whole_knowledge/application/capture/discovery_submission_id.dart';
 import 'package:whole_knowledge/application/capture/discovery_validation.dart';
 import 'package:whole_knowledge/application/capture/lexical_provider.dart';
-import 'package:whole_knowledge/application/learning/capture_learning_item.dart';
 import 'package:whole_knowledge/application/learning/learning_item_repository.dart';
 import 'package:whole_knowledge/domain/learning/learning_item.dart';
 
@@ -19,12 +19,14 @@ final class CaptureSessionController {
     this._lexicalProvider,
     this._learningItems, [
     this._saveDebounce = const Duration(milliseconds: 400),
+    this._diagnostics = const NoopDiscoveryDiagnostics(),
   ]);
 
   final CaptureDraftRepository _drafts;
   final LexicalProvider _lexicalProvider;
   final LearningItemRepository _learningItems;
   final Duration _saveDebounce;
+  final DiscoveryDiagnostics _diagnostics;
   final Set<CaptureSessionListener> _listeners = {};
   Timer? _debounce;
   CaptureSessionState _state = const CaptureRestoring(CaptureDraft());
@@ -33,23 +35,18 @@ final class CaptureSessionController {
   int _generation = 0;
   bool _kindOverridden = false;
   bool _allowExistingSurface = false;
-  bool _legacySaving = false;
-  bool _legacyLookingUp = false;
 
   CaptureSessionState get state => _state;
   CaptureDraft get draft => _state.draft;
   LexicalLookup? get lookup => _activeLookup;
   String get lookupAttribution => _lexicalProvider.attribution;
   bool get isRestoring => _state is CaptureRestoring;
-  bool get isSaving =>
-      _legacySaving || _state is CaptureSaving || _state is CaptureReconciling;
-  bool get isLookingUp =>
-      _legacyLookingUp ||
-      switch (_state) {
-        CaptureChecking(:final lexical) => lexical is LexicalPending,
-        CaptureVocabularySenses(:final lexical) => lexical is LexicalPending,
-        _ => false,
-      };
+  bool get isSaving => _state is CaptureSaving || _state is CaptureReconciling;
+  bool get isLookingUp => switch (_state) {
+    CaptureChecking(:final lexical) => lexical is LexicalPending,
+    CaptureVocabularySenses(:final lexical) => lexical is LexicalPending,
+    _ => false,
+  };
   LearningItemKind get suggestedKind =>
       DiscoveryValidation.suggestKind(draft.content);
   bool get kindWasOverridden => _kindOverridden;
@@ -99,10 +96,15 @@ final class CaptureSessionController {
       }
       return restored;
     } on DiscoveryFailure catch (failure) {
+      _recordFailure(DiscoveryDiagnosticOperation.draftRead, failure);
       restored = false;
       _setState(CaptureEntry(const CaptureDraft(), failure: failure));
       return false;
     } on Object {
+      _recordFailure(
+        DiscoveryDiagnosticOperation.draftRead,
+        const DiscoveryFailure(DiscoveryFailureCode.draftReadFailure),
+      );
       restored = false;
       _setState(
         const CaptureEntry(
@@ -278,9 +280,19 @@ final class CaptureSessionController {
       );
     } on DiscoveryFailure catch (failure) {
       if (generation != _generation) return;
+      _recordFailure(
+        DiscoveryDiagnosticOperation.libraryCheck,
+        failure,
+        requestGeneration: generation,
+      );
       _applyLibraryOutcome(LibraryFailed(failure), generation);
     } on Object {
       if (generation != _generation) return;
+      _recordFailure(
+        DiscoveryDiagnosticOperation.libraryCheck,
+        const DiscoveryFailure(DiscoveryFailureCode.libraryCheckUnavailable),
+        requestGeneration: generation,
+      );
       _applyLibraryOutcome(
         const LibraryFailed(
           DiscoveryFailure(DiscoveryFailureCode.libraryCheckUnavailable),
@@ -298,12 +310,22 @@ final class CaptureSessionController {
       _applyLexicalOutcome(LexicalFound(found), generation);
     } on DiscoveryFailure catch (failure) {
       if (generation != _generation) return;
+      _recordFailure(
+        DiscoveryDiagnosticOperation.lexicalLookup,
+        failure,
+        requestGeneration: generation,
+      );
       lookupError = _lookupFailureCopy(failure.code);
       _applyLexicalOutcome(LexicalFailed(failure), generation);
     } on Object {
       if (generation != _generation) return;
       const failure = DiscoveryFailure(
         DiscoveryFailureCode.lexicalServiceUnavailable,
+      );
+      _recordFailure(
+        DiscoveryDiagnosticOperation.lexicalLookup,
+        failure,
+        requestGeneration: generation,
       );
       lookupError = _lookupFailureCopy(failure.code);
       _applyLexicalOutcome(const LexicalFailed(failure), generation);
@@ -754,6 +776,11 @@ final class CaptureSessionController {
     try {
       await _drafts.write(prepared);
     } on Object {
+      _recordFailure(
+        DiscoveryDiagnosticOperation.draftWrite,
+        const DiscoveryFailure(DiscoveryFailureCode.draftWriteFailure),
+        submissionId: submission.submissionId,
+      );
       saveError =
           'Could not secure this draft locally. Your input is still here.';
       _setState(
@@ -781,6 +808,11 @@ final class CaptureSessionController {
       try {
         await _drafts.write(attemptedDraft);
       } on Object {
+        _recordFailure(
+          DiscoveryDiagnosticOperation.draftWrite,
+          const DiscoveryFailure(DiscoveryFailureCode.draftWriteFailure),
+          submissionId: checkpoint.submission.submissionId,
+        );
         saveError =
             'Could not secure this draft locally. Your input is still here.';
         _setState(CaptureProduction(attemptedDraft));
@@ -820,6 +852,17 @@ final class CaptureSessionController {
           );
           return null;
         case DiscoveryCreated(:final item) || DiscoveryReplayed(:final item):
+          if (completion is DiscoveryReplayed) {
+            _diagnostics.record(
+              DiscoveryDiagnosticEvent(
+                operation: DiscoveryDiagnosticOperation.completeDiscovery,
+                phase: _diagnosticPhase,
+                submissionId: checkpoint.submission.submissionId,
+                itemId: item.id,
+                reconciliationSucceeded: true,
+              ),
+            );
+          }
           await _clearAfterSuccessfulCreate();
           _allowExistingSurface = false;
           restored = false;
@@ -828,6 +871,12 @@ final class CaptureSessionController {
           return item;
       }
     } on DiscoveryFailure catch (failure) {
+      _recordFailure(
+        DiscoveryDiagnosticOperation.completeDiscovery,
+        failure,
+        requestGeneration: _generation,
+        submissionId: checkpoint.submission.submissionId,
+      );
       saveError = _submissionFailureCopy(failure.code);
       if (failure.code == DiscoveryFailureCode.discoveryValidationRejected) {
         final next = attemptedDraft.copyWith(
@@ -848,6 +897,12 @@ final class CaptureSessionController {
     } on Object {
       const failure = DiscoveryFailure(
         DiscoveryFailureCode.discoveryOutcomeUnknown,
+      );
+      _recordFailure(
+        DiscoveryDiagnosticOperation.completeDiscovery,
+        failure,
+        requestGeneration: _generation,
+        submissionId: checkpoint.submission.submissionId,
       );
       saveError = _submissionFailureCopy(failure.code);
       _setState(
@@ -874,84 +929,21 @@ final class CaptureSessionController {
     }
   }
 
-  Future<void> lookupMeaning() async {
-    if (_legacyLookingUp) return;
-    _legacyLookingUp = true;
-    lookupError = null;
-    _activeLookup = null;
-    _notify();
-    try {
-      _activeLookup = await _lexicalProvider.lookup(draft.content);
-    } on DiscoveryFailure catch (failure) {
-      lookupError = _lookupFailureCopy(failure.code);
-    } on Object {
-      lookupError = 'English lookup is unavailable. Add a meaning manually.';
-    } finally {
-      _legacyLookingUp = false;
-      _notify();
-    }
-  }
-
-  Future<LearningItem?> save() async {
-    if (_legacySaving) return null;
-    final optionalError =
-        CaptureLearningItemValidator.validatePartOfSpeech(draft.partOfSpeech) ??
-        CaptureLearningItemValidator.validateMeaning(draft.meaning) ??
-        CaptureLearningItemValidator.validateContext(draft.context) ??
-        CaptureLearningItemValidator.validateSource(draft.source);
-    contentError = CaptureLearningItemValidator.validateContent(draft.content);
-    saveError = optionalError;
-    if (contentError != null || optionalError != null) {
-      _notify();
-      return null;
-    }
-
-    _legacySaving = true;
-    _debounce?.cancel();
-    try {
-      await _drafts.write(draft);
-    } on Object {
-      _legacySaving = false;
-      saveError =
-          'Could not secure this draft locally. Your input is still here.';
-      _notify();
-      return null;
-    }
-    _notify();
-    try {
-      final item = await _learningItems.create(
-        CaptureLearningItem(
-          kind: draft.kind,
-          content: draft.content,
-          partOfSpeech: draft.partOfSpeech,
-          meaning: draft.meaning,
-          context: draft.context,
-          source: draft.source,
-        ),
-      );
-      await _clearAfterSuccessfulCreate();
-      _activeLookup = null;
-      lookupError = null;
-      contentError = null;
-      saveError = null;
-      _setState(const CaptureEntry(CaptureDraft()));
-      return item;
-    } on Object {
-      saveError = 'Could not save this item. Your input is still here.';
-      return null;
-    } finally {
-      _legacySaving = false;
-      _notify();
-    }
-  }
-
   Future<void> _clearAfterSuccessfulCreate() async {
     try {
       await _drafts.clear();
     } on Object {
+      _recordFailure(
+        DiscoveryDiagnosticOperation.draftWrite,
+        const DiscoveryFailure(DiscoveryFailureCode.draftWriteFailure),
+      );
       try {
         await _drafts.write(const CaptureDraft());
       } on Object {
+        _recordFailure(
+          DiscoveryDiagnosticOperation.draftWrite,
+          const DiscoveryFailure(DiscoveryFailureCode.draftWriteFailure),
+        );
         // The committed server item is authoritative. No duplicate action is
         // exposed when local cleanup is unavailable.
       }
@@ -963,6 +955,10 @@ final class CaptureSessionController {
     try {
       await _drafts.clear();
     } on Object {
+      _recordFailure(
+        DiscoveryDiagnosticOperation.draftWrite,
+        const DiscoveryFailure(DiscoveryFailureCode.draftWriteFailure),
+      );
       saveError =
           'Could not discard the local draft. Your input is still here.';
       _notify();
@@ -987,6 +983,10 @@ final class CaptureSessionController {
         await _drafts.clear();
       }
     } on Object {
+      _recordFailure(
+        DiscoveryDiagnosticOperation.draftWrite,
+        const DiscoveryFailure(DiscoveryFailureCode.draftWriteFailure),
+      );
       saveError =
           'Could not save this draft locally. Your input is still here.';
       _notify();
@@ -1085,6 +1085,37 @@ final class CaptureSessionController {
       listener();
     }
   }
+
+  void _recordFailure(
+    DiscoveryDiagnosticOperation operation,
+    DiscoveryFailure failure, {
+    int? requestGeneration,
+    String? submissionId,
+  }) {
+    _diagnostics.record(
+      DiscoveryDiagnosticEvent(
+        operation: operation,
+        phase: _diagnosticPhase,
+        failureCode: failure.code,
+        failureMetadata: failure.metadata,
+        requestGeneration: requestGeneration,
+        submissionId: submissionId,
+      ),
+    );
+  }
+
+  DiscoveryDiagnosticPhase get _diagnosticPhase => switch (_state) {
+    CaptureRestoring() => DiscoveryDiagnosticPhase.restoring,
+    CaptureEntry() => DiscoveryDiagnosticPhase.entry,
+    CaptureChecking() => DiscoveryDiagnosticPhase.checking,
+    CaptureVocabularySenses() => DiscoveryDiagnosticPhase.vocabularyMeaning,
+    CaptureExpressionMeaning() => DiscoveryDiagnosticPhase.expressionMeaning,
+    CaptureReEncounter() => DiscoveryDiagnosticPhase.reEncounter,
+    CaptureProduction() => DiscoveryDiagnosticPhase.production,
+    CaptureSaving() => DiscoveryDiagnosticPhase.saving,
+    CaptureReconciling() => DiscoveryDiagnosticPhase.reconciling,
+    CaptureDiscovered() => DiscoveryDiagnosticPhase.discovered,
+  };
 
   static String _lookupFailureCopy(DiscoveryFailureCode code) {
     return switch (code) {

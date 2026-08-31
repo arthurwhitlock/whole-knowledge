@@ -119,10 +119,24 @@ Capture is tertiary.
 
 ### Capture
 
-Capture is a calm linear document with three sections: Encounter, Meaning, and
-Supporting detail. Type and captured language are primary; dictionary lookup is
-a contextual aid; optional fields remain visible and secondary. Save for review
-is the single prominent action.
+Capture is a centered, calm, focused document that advances through Entry,
+Checking, Meaning, Re-encounter, Production, and Discovered without becoming a
+generic wizard. One initial word/expression field dominates Entry. The suggested
+Vocabulary/Expression type remains visible, lightweight, and overridable.
+
+Library and dictionary progress appear independently. Vocabulary meanings use
+editorial part-of-speech headings and rows rather than sense cards; every POS
+stays visible, each group initially shows two senses, and expansion is local to
+that group. A selected dictionary meaning is summarized first and editable by
+progressive disclosure. Manual meaning and optional encounter details remain
+available without competing with the primary task.
+
+First production is part of Discovery. Meaning or type edits preserve authored
+production but invalidate stale confirmation visibly. The in-flow primary and
+defer actions remain keyboard/IME-aware and scrollable rather than being pinned
+behind input. Re-encounter keeps learned answers hidden until reveal, selects a
+sense before presenting one shared action group, and uses the existing focused
+Review. Discovered ends with `Done` primary and `Capture another` secondary.
 
 ### Library
 
@@ -176,6 +190,12 @@ transition durations to zero while preserving state changes and meaning.
 - Errors and review-stage changes use live regions or explicit semantic labels.
 - Text and controls retain readable contrast in light and dark themes.
 - Content reflows without horizontal scrolling at supported text scales.
+- Capture actions wrap into a readable vertical flow at large text scales and
+  retain at least a 48 px target at ordinary scales.
+- Phase headings receive focus after transitions; invalid fields and revealed
+  meanings receive focus when recovery requires it.
+- Independent service progress, errors, phase changes, review timing, and
+  Discovered state use concise live-region or explicit semantic announcements.
 - Motion honors the platform reduced-motion preference.
 - Text fields intentionally expose only Cut, Copy, Paste, and Select all in the
   compact Flutter context menu.
